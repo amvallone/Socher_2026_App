@@ -554,8 +554,24 @@ function subscribeRealtime(){
    de Supabase 'enviar-correo' que reciba {to,asunto,cuerpo} y use Resend/SendGrid.
    CONFIG_LOG: ajustar el nombre de la Edge Function. */
 async function dispatchEmail(to,asunto,cuerpo){
-  try{ await sb.functions.invoke('enviar-correo',{body:{to,asunto,cuerpo}}); }
-  catch(e){ console.log('--- EMAIL (función no configurada) ---\nPara:'+to+'\n'+asunto+'\n\n'+cuerpo); }
+  if(!to){ console.warn('[SOCHER] No se envió correo: destinatario vacío.'); toast('No se pudo enviar el correo: destinatario vacío.','err'); return; }
+  try{
+    const {data,error}=await sb.functions.invoke('enviar-correo',{body:{to,asunto,cuerpo}});
+    if(error){
+      console.error('[SOCHER] Error al invocar enviar-correo:', error);
+      let detalle='';
+      try{ detalle = await error.context?.text?.() || ''; }catch(_){}
+      toast('El correo no se envió. Revise la consola/logs. '+(error.message||''),'err');
+      console.error('[SOCHER] Detalle de la función:', detalle);
+      console.log('--- TEXTO DEL CORREO (no enviado) ---\nPara:'+to+'\n'+asunto+'\n\n'+cuerpo);
+      return;
+    }
+    console.log('[SOCHER] Correo enviado vía enviar-correo:', data);
+  }catch(e){
+    console.error('[SOCHER] Excepción al invocar enviar-correo:', e);
+    toast('No se pudo contactar la función de correo. ¿Está desplegada como "enviar-correo"?','err');
+    console.log('--- TEXTO DEL CORREO (no enviado) ---\nPara:'+to+'\n'+asunto+'\n\n'+cuerpo);
+  }
 }
 function sendEmailAceptacion(u,w){
   const nombre=u?`${u.nombres} ${u.ap}`:'autor/a';
