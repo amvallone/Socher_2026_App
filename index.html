@@ -252,11 +252,30 @@ async function doRegister(){
   const p=$('reg-pass').value,p2=$('reg-pass2').value;
   if(!nombres||!ap||!am||!afil||!email||!p) return toast('Complete todos los campos obligatorios.','err');
   if(p!==p2) return toast('Las contraseñas no coinciden.','err');
-  const {error}=await sb.auth.signUp({email,password:p,options:{data:{nombres,ap,am,afil}}});
+  const {data:su,error}=await sb.auth.signUp({email,password:p,options:{data:{nombres,ap,am,afil}}});
   if(error) return toast('No se pudo registrar: '+error.message,'err');
-  /* CONFIG_LOG: Modificar este mensaje de confirmación de guardado de registro. */
-  toast('Registro guardado. Revise su correo para confirmar la cuenta antes de iniciar sesión.','ok');
+
   ['reg-nombres','reg-ap','reg-am','reg-afil','reg-email','reg-pass','reg-pass2'].forEach(i=>$(i).value='');
+
+  // Si la confirmación de email está DESACTIVADA en Supabase, signUp ya devuelve sesión:
+  // entramos directo. Si está ACTIVADA, no hay sesión y mostramos el aviso de confirmación.
+  if(su && su.session){
+    session=su.session;
+    /* CONFIG_LOG: Mensaje de confirmación de registro con acceso inmediato. */
+    toast('Registro completado. Bienvenido/a.','ok');
+    return afterAuth();
+  }
+  // Plan B: intentar iniciar sesión de inmediato (por si el proyecto no abrió sesión en signUp).
+  const {data:li}=await sb.auth.signInWithPassword({email,password:p});
+  if(li && li.session){
+    session=li.session;
+    /* CONFIG_LOG: Mensaje de confirmación de registro con acceso inmediato. */
+    toast('Registro completado. Bienvenido/a.','ok');
+    return afterAuth();
+  }
+  // Confirmación por email sigue activa: el usuario debe confirmar antes de entrar.
+  /* CONFIG_LOG: Modificar este mensaje de confirmación de guardado de registro (con confirmación por correo activa). */
+  toast('Registro guardado. Revise su correo para confirmar la cuenta antes de iniciar sesión.','ok');
   $('login-email').value=email; show('box-login');
 }
 async function doLogin(){
@@ -279,10 +298,20 @@ async function logout(){
   $('view-user').classList.add('hidden'); $('view-admin').classList.add('hidden');
   $('view-landing').classList.remove('hidden'); show('box-login');
 }
+async function loadProfile(){
+  // Reintenta por si el trigger de creación de perfil aún no termina (registro recién hecho).
+  for(let intento=0; intento<4; intento++){
+    const {data}=await sb.from('profiles').select('*').eq('id',session.user.id).maybeSingle();
+    if(data) return data;
+    await new Promise(r=>setTimeout(r,600));
+  }
+  return null;
+}
 async function afterAuth(){
-  const {data,error}=await sb.from('profiles').select('*').eq('id',session.user.id).single();
-  if(error||!data){ toast('No se encontró su perfil. Contacte al organizador.','err'); return logout(); }
-  profile=data; renderUserbox(); $('view-landing').classList.add('hidden');
+  profile=await loadProfile();
+  if(!profile){ toast('No se encontró su perfil. Si acaba de registrarse, espere unos segundos e ingrese de nuevo.','err'); return logout(); }
+  console.log('[SOCHER] Sesión iniciada. Rol detectado:', profile.role, '· email:', profile.email);
+  renderUserbox(); $('view-landing').classList.add('hidden');
   if(profile.role==='admin'||profile.role==='superadmin'){
     $('view-user').classList.add('hidden'); $('view-admin').classList.remove('hidden');
     $('atab-roles').classList.toggle('hidden', profile.role!=='superadmin');
