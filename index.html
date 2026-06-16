@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOCHER 2026 — Congreso Sociedad Chilena de Economía Regional</title>
+<style>
+  :root{
+    --abismo:#0c1f33;--mar:#13344f;--espuma:#f4efe6;--cobre:#c4622d;--cobre-claro:#e08a52;
+    --niebla:#7e93a6;--linea:#23445f;--verde:#3f8a6e;--rojo:#b34a4a;--amarillo:#c9a227;
+    --radio:10px;--display:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:"Inter","Segoe UI",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--sans);background:var(--abismo);color:var(--espuma);line-height:1.55;min-height:100vh}
+  .horizonte{height:3px;background:linear-gradient(90deg,var(--cobre),var(--cobre-claro) 60%,transparent);border:none}
+  a{color:var(--cobre-claro);text-decoration:none}a:hover{text-decoration:underline}
+  button{font-family:var(--sans);cursor:pointer}input,select,textarea{font-family:var(--sans)}
+  h1,h2,h3{font-family:var(--display);font-weight:600;line-height:1.1}
+  .hidden{display:none !important}
+  header.bar{display:flex;align-items:center;justify-content:space-between;padding:18px 32px;border-bottom:1px solid var(--linea);background:var(--abismo);position:sticky;top:0;z-index:10}
+  .brand{display:flex;align-items:baseline;gap:14px}
+  .brand .mark{font-family:var(--display);font-size:1.5rem;letter-spacing:.5px}.brand .mark b{color:var(--cobre)}
+  .brand .sub{color:var(--niebla);font-size:.78rem;letter-spacing:1.5px;text-transform:uppercase}
+  .userbox{display:flex;align-items:center;gap:16px;font-size:.9rem}
+  .userbox .role{color:var(--cobre-claro);font-size:.72rem;text-transform:uppercase;letter-spacing:1px}
+  .btn{background:var(--cobre);color:#fff;border:none;padding:10px 18px;border-radius:var(--radio);font-weight:600;font-size:.9rem;transition:.15s}
+  .btn:hover{background:var(--cobre-claro)}
+  .btn.ghost{background:transparent;border:1px solid var(--linea);color:var(--espuma)}
+  .btn.ghost:hover{border-color:var(--cobre)}
+  .btn.sm{padding:6px 12px;font-size:.8rem}.btn.ok{background:var(--verde)}.btn.no{background:var(--rojo)}.btn.danger{background:var(--rojo)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  main{max-width:1100px;margin:0 auto;padding:40px 32px 80px}.wrap-narrow{max-width:460px;margin:0 auto}
+  .hero{padding:64px 32px 40px;text-align:center;border-bottom:1px solid var(--linea)}
+  .hero .eyebrow{color:var(--cobre);letter-spacing:3px;text-transform:uppercase;font-size:.78rem;margin-bottom:18px}
+  .hero h1{font-size:clamp(2.2rem,5vw,3.6rem);max-width:14ch;margin:0 auto 18px}
+  .hero .meta{color:var(--niebla);font-size:1.05rem}.hero .meta strong{color:var(--espuma)}
+  .panel{background:var(--mar);border:1px solid var(--linea);border-radius:var(--radio);padding:28px}
+  .panel + .panel{margin-top:28px}.panel h2{font-size:1.4rem;margin-bottom:6px}
+  .panel .desc{color:var(--niebla);font-size:.92rem;margin-bottom:22px}
+  .field{margin-bottom:16px}
+  label{display:block;font-size:.82rem;color:var(--niebla);margin-bottom:6px}label .req{color:var(--cobre)}
+  input,select,textarea{width:100%;background:var(--abismo);border:1px solid var(--linea);color:var(--espuma);padding:11px 13px;border-radius:8px;font-size:.95rem}
+  textarea{resize:vertical;min-height:90px}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--cobre)}
+  .row{display:flex;gap:14px}.row .field{flex:1}
+  .filebox{border:1.5px dashed var(--linea);border-radius:8px;padding:18px;text-align:center;color:var(--niebla);font-size:.88rem;cursor:pointer}
+  .filebox.ok{border-color:var(--verde);color:var(--espuma)}
+  .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(120%);background:var(--mar);border:1px solid var(--cobre);border-left:4px solid var(--cobre);color:var(--espuma);padding:16px 22px;border-radius:8px;max-width:480px;box-shadow:0 12px 40px rgba(0,0,0,.5);transition:transform .35s ease;z-index:50;font-size:.92rem}
+  .toast.show{transform:translateX(-50%) translateY(0)}
+  .toast.ok{border-color:var(--verde);border-left-color:var(--verde)}.toast.err{border-color:var(--rojo);border-left-color:var(--rojo)}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  th,td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--linea);vertical-align:top}
+  th{color:var(--niebla);font-size:.74rem;text-transform:uppercase;letter-spacing:1px;font-weight:600}
+  .tag{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.72rem;font-weight:600}
+  .tag.pend{background:rgba(201,162,39,.18);color:var(--amarillo)}.tag.acc{background:rgba(63,138,110,.2);color:#74c8a6}
+  .tag.rej{background:rgba(179,74,74,.2);color:#e89292}.tag.si{background:rgba(63,138,110,.2);color:#74c8a6}
+  .tag.no{background:rgba(126,147,166,.18);color:var(--niebla)}.tag.admin{background:rgba(196,98,45,.2);color:var(--cobre-claro)}
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--linea);margin-bottom:28px}
+  .tab{padding:12px 20px;color:var(--niebla);border-bottom:2px solid transparent;font-weight:600;font-size:.92rem}
+  .tab.active{color:var(--espuma);border-bottom-color:var(--cobre)}
+  .empty{color:var(--niebla);text-align:center;padding:40px;font-style:italic}
+  .seg{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+  .seg button{background:var(--abismo);border:1px solid var(--linea);color:var(--niebla);padding:7px 14px;border-radius:20px;font-size:.82rem}
+  .seg button.on{border-color:var(--cobre);color:var(--espuma)}
+  .live{display:inline-flex;align-items:center;gap:6px;font-size:.74rem;color:var(--niebla)}
+  .live .dot{width:8px;height:8px;border-radius:50%;background:var(--verde);animation:pulse 2s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(63,138,110,.5)}70%{box-shadow:0 0 0 8px rgba(63,138,110,0)}100%{box-shadow:0 0 0 0 rgba(63,138,110,0)}}
+  footer{border-top:1px solid var(--linea);padding:28px 32px;text-align:center;color:var(--niebla);font-size:.82rem}
+  .setup-warn{background:rgba(179,74,74,.15);border:1px solid var(--rojo);border-radius:8px;padding:16px;margin:20px auto;max-width:680px;font-size:.9rem}
+</style>
+</head>
+<body>
+<div class="horizonte"></div>
+
+<header class="bar">
+  <div class="brand"><span class="mark"><b>SOCHER</b> 2026</span><span class="sub">Economía Regional · Coquimbo</span></div>
+  <div class="userbox" id="userbox"></div>
+</header>
+
+<div id="setup-warn" class="setup-warn hidden">
+  <strong>Configuración pendiente.</strong> Edita las constantes <code>SUPABASE_URL</code> y
+  <code>SUPABASE_ANON_KEY</code> al inicio del &lt;script&gt; con los datos de tu proyecto Supabase
+  (Project Settings → API). Hasta entonces la app no puede guardar datos.
+</div>
+
+<section id="view-landing">
+  <div class="hero">
+    <div class="eyebrow">XV Congreso · 18–20 Noviembre 2026</div>
+    <h1>Encuentro de la Sociedad Chilena de Economía Regional</h1>
+    <p class="meta">Campus Guayacán · <strong>Universidad Católica del Norte</strong> · Coquimbo, Chile</p>
+  </div>
+  <main class="wrap-narrow">
+    <div class="panel" id="box-login">
+      <h2>Iniciar sesión</h2>
+      <p class="desc">Acceda con el correo y la contraseña de su registro.</p>
+      <div class="field"><label>Email de registro <span class="req">*</span></label><input type="email" id="login-email" autocomplete="username"></div>
+      <div class="field"><label>Contraseña <span class="req">*</span></label><input type="password" id="login-pass" autocomplete="current-password"></div>
+      <button class="btn" style="width:100%" onclick="doLogin()">Entrar</button>
+      <p style="margin-top:14px;font-size:.86rem"><a href="#" onclick="resetPass();return false">¿Olvidó su contraseña?</a></p>
+      <p style="margin-top:6px;font-size:.9rem;color:var(--niebla)">¿No tiene cuenta? <a href="#" onclick="show('box-register');return false">Cree su registro aquí</a></p>
+    </div>
+    <div class="panel hidden" id="box-register">
+      <h2>Crear registro</h2>
+      <p class="desc">Recibirá un correo para confirmar su cuenta antes de poder ingresar.</p>
+      <div class="row"><div class="field"><label>Nombres <span class="req">*</span></label><input id="reg-nombres"></div></div>
+      <div class="row">
+        <div class="field"><label>Apellido paterno <span class="req">*</span></label><input id="reg-ap"></div>
+        <div class="field"><label>Apellido materno <span class="req">*</span></label><input id="reg-am"></div>
+      </div>
+      <div class="field"><label>Afiliación institucional <span class="req">*</span></label><input id="reg-afil"></div>
+      <div class="field"><label>Email <span class="req">*</span></label><input type="email" id="reg-email"></div>
+      <div class="row">
+        <div class="field"><label>Contraseña <span class="req">*</span></label><input type="password" id="reg-pass"></div>
+        <div class="field"><label>Repetir contraseña <span class="req">*</span></label><input type="password" id="reg-pass2"></div>
+      </div>
+      <div style="display:flex;gap:12px;margin-top:8px">
+        <button class="btn" style="flex:1" onclick="doRegister()">Guardar registro</button>
+        <button class="btn ghost" style="flex:1" onclick="show('box-login')">Volver a Iniciar sesión</button>
+      </div>
+    </div>
+  </main>
+</section>
+
+<section id="view-user" class="hidden">
+  <main>
+    <div class="tabs">
+      <div class="tab active" id="utab-envio" onclick="userTab('envio')">Envío de trabajos</div>
+      <div class="tab" id="utab-insc" onclick="userTab('insc')">Inscripción</div>
+    </div>
+    <div id="upane-envio">
+      <div class="panel">
+        <h2>Envío de trabajo</h2>
+        <p class="desc">Una vez enviado, el documento se cierra para edición y queda en evaluación.</p>
+        <div class="field"><label>Título de la ponencia <span class="req">*</span></label><input id="w-titulo"></div>
+        <div class="field"><label>Palabras clave <span class="req">*</span></label><input id="w-keywords" placeholder="separadas por coma"></div>
+        <label>Autores <span class="req">*</span></label>
+        <div id="autores-list"></div>
+        <button class="btn ghost sm" style="margin:6px 0 18px" onclick="addAutor()">+ Agregar autor</button>
+        <div class="row">
+          <div class="field"><label>Área temática <span class="req">*</span></label>
+            <select id="w-area"><option value="">— Seleccione —</option>
+              <option>Economía urbana y regional</option><option>Mercados laborales territoriales</option>
+              <option>Recursos naturales y medio ambiente</option><option>Desigualdad y desarrollo territorial</option>
+              <option>Métodos y datos espaciales</option><option>Política regional e instituciones</option>
+            </select></div>
+          <div class="field"><label>Tipo de formato <span class="req">*</span></label>
+            <select id="w-formato"><option value="">— Seleccione —</option><option>Artículo</option><option>Resumen extendido</option><option>Proposal</option></select></div>
+        </div>
+        <div class="field"><label>Archivo del trabajo <span class="req">*</span></label>
+          <div class="filebox" id="filebox" onclick="document.getElementById('w-file').click()">Haga clic para subir su documento (PDF / DOCX)</div>
+          <input type="file" id="w-file" class="hidden" accept=".pdf,.doc,.docx" onchange="fileChosen()">
+        </div>
+        <button class="btn" id="btn-submit" onclick="submitWork()">Enviar para evaluación</button>
+      </div>
+      <div class="panel"><h2>Mis envíos</h2><div id="mis-envios"></div></div>
+    </div>
+    <div id="upane-insc" class="hidden">
+      <div class="panel">
+        <h2>Inscripción al congreso</h2>
+        <p class="desc">Sus datos se completan automáticamente desde su perfil.</p>
+        <div class="row"><div class="field"><label>Nombre completo</label><input id="i-nombre" readonly></div>
+          <div class="field"><label>Afiliación</label><input id="i-afil" readonly></div></div>
+        <div class="field"><label>Email</label><input id="i-email" readonly></div>
+        <label style="margin-top:8px">Categoría de inscripción</label>
+        <div class="seg" id="seg-momento"><button class="on" data-k="momento" data-v="early" onclick="pick(this)">Early Bird</button><button data-k="momento" data-v="late" onclick="pick(this)">Tardía</button></div>
+        <div class="seg" id="seg-tipo"><button class="on" data-k="tipo" data-v="estudiante" onclick="pick(this)">Estudiante</button><button data-k="tipo" data-v="profesional" onclick="pick(this)">Profesional</button></div>
+        <div class="seg" id="seg-socio"><button class="on" data-k="socio" data-v="socio" onclick="pick(this)">Socio SOCHER</button><button data-k="socio" data-v="nosocio" onclick="pick(this)">No socio</button></div>
+        <div style="margin:22px 0;padding:20px;border:1px solid var(--cobre);border-radius:8px;text-align:center">
+          <div style="color:var(--niebla);font-size:.8rem;letter-spacing:1px;text-transform:uppercase">Tarifa aplicable</div>
+          <div style="font-family:var(--display);font-size:2.6rem" id="tarifa">—</div>
+          <div style="color:var(--niebla);font-size:.85rem" id="tarifa-detalle"></div>
+        </div>
+        <button class="btn" style="width:100%" onclick="goPay()">Ir a la pasarela de pago</button>
+      </div>
+      <div class="panel"><h2>Matriz de tarifas (CLP)</h2><p class="desc">Referencia completa de las tarifas.</p>
+        <table><thead><tr><th>Categoría</th><th>Early Bird</th><th>Tardía</th></tr></thead><tbody id="matriz-precios"></tbody></table></div>
+    </div>
+  </main>
+</section>
+
+<section id="view-admin" class="hidden">
+  <main>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div class="tabs" style="border:none;margin:0">
+        <div class="tab active" id="atab-envios" onclick="adminTab('envios')">Envíos</div>
+        <div class="tab" id="atab-insc" onclick="adminTab('insc')">Inscripciones</div>
+        <div class="tab hidden" id="atab-roles" onclick="adminTab('roles')">Gestión de roles</div>
+      </div>
+      <span class="live"><span class="dot"></span>En vivo</span>
+    </div>
+    <div id="apane-envios"><div class="panel"><h2>Trabajos recibidos</h2>
+      <p class="desc">Acepte o rechace cada trabajo. La acción notifica al autor y se refleja al instante para los demás administradores.</p>
+      <table><thead><tr><th>Título</th><th>Autor</th><th>Área</th><th>Formato</th><th>Archivo</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="admin-envios"></tbody></table></div></div>
+    <div id="apane-insc" class="hidden"><div class="panel"><h2>Usuarios inscritos</h2>
+      <p class="desc">Inscritos, con indicación de si han enviado trabajos y su detalle temático.</p>
+      <table><thead><tr><th>Nombre</th><th>Afiliación</th><th>Tarifa</th><th>¿Envió?</th><th>Palabras clave</th><th>Área temática</th></tr></thead><tbody id="admin-insc"></tbody></table></div></div>
+    <div id="apane-roles" class="hidden">
+      <div class="panel"><h2>Gestión de usuarios y roles</h2>
+        <p class="desc">Otorgue o remueva permisos de administrador y elimine usuarios. Exclusivo del Superadministrador.</p>
+        <table><thead><tr><th>Usuario</th><th>Email</th><th>Rol</th><th>Acciones</th></tr></thead><tbody id="admin-roles"></tbody></table></div>
+      <div class="panel"><h2>Eliminar trabajos del sistema</h2><p class="desc">La eliminación es permanente e irreversible.</p>
+        <table><thead><tr><th>Título</th><th>Autor</th><th>Estado</th><th>Acción</th></tr></thead><tbody id="super-works"></tbody></table></div>
+    </div>
+  </main>
+</section>
+
+<footer>SOCHER 2026 · Sociedad Chilena de Economía Regional · Campus Guayacán, UCN, Coquimbo · 18–20 de noviembre de 2026</footer>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* ============================================================
+   CONFIGURACIÓN SUPABASE
+   CONFIG_LOG: Pega aquí la URL y la anon key de tu proyecto
+   (Supabase → Project Settings → API). La anon key es pública
+   por diseño; la seguridad real vive en las políticas RLS del SQL.
+   ============================================================ */
+const SUPABASE_URL      = 'https://TU-PROYECTO.supabase.co';
+const SUPABASE_ANON_KEY = 'TU_ANON_KEY';
+
+/* ---- MATRIZ DE TARIFAS (CLP). CONFIG_LOG: editar valores. ---- */
+const TARIFAS = {
+  early:{ estudiante:{socio:35000,nosocio:55000}, profesional:{socio:90000, nosocio:130000} },
+  late: { estudiante:{socio:50000,nosocio:75000}, profesional:{socio:120000,nosocio:170000} }
+};
+/* CONFIG_LOG: URL real de la pasarela de pago (Webpay, Flow, etc.) */
+const URL_PASARELA = 'https://pasarela-de-pago.example.com/socher2026';
+
+/* ============================================================ */
+let sb=null, session=null, profile=null;
+let pricePick={momento:'early',tipo:'estudiante',socio:'socio'};
+let chosenFile=null, adminChannel=null;
+
+const $=id=>document.getElementById(id);
+function show(id){['box-login','box-register'].forEach(b=>$(b)?.classList.add('hidden'));$(id)?.classList.remove('hidden');}
+function toast(m,k){const t=$('toast');t.textContent=m;t.className='toast show'+(k?(' '+k):'');clearTimeout(t._t);t._t=setTimeout(()=>t.className='toast',4500);}
+function fmt(n){return '$'+Number(n).toLocaleString('es-CL');}
+
+(function init(){
+  if(SUPABASE_URL.includes('TU-PROYECTO')||SUPABASE_ANON_KEY.includes('TU_ANON_KEY')) $('setup-warn').classList.remove('hidden');
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  renderMatriz();
+  sb.auth.getSession().then(({data})=>{ if(data.session){ session=data.session; afterAuth(); } else { show('box-login'); } });
+  sb.auth.onAuthStateChange((_e,s)=>{ session=s; });
+})();
+
+/* ===== AUTH ===== */
+async function doRegister(){
+  const v=id=>$(id).value.trim();
+  const nombres=v('reg-nombres'),ap=v('reg-ap'),am=v('reg-am'),afil=v('reg-afil'),email=v('reg-email');
+  const p=$('reg-pass').value,p2=$('reg-pass2').value;
+  if(!nombres||!ap||!am||!afil||!email||!p) return toast('Complete todos los campos obligatorios.','err');
+  if(p!==p2) return toast('Las contraseñas no coinciden.','err');
+  const {error}=await sb.auth.signUp({email,password:p,options:{data:{nombres,ap,am,afil}}});
+  if(error) return toast('No se pudo registrar: '+error.message,'err');
+  /* CONFIG_LOG: Modificar este mensaje de confirmación de guardado de registro. */
+  toast('Registro guardado. Revise su correo para confirmar la cuenta antes de iniciar sesión.','ok');
+  ['reg-nombres','reg-ap','reg-am','reg-afil','reg-email','reg-pass','reg-pass2'].forEach(i=>$(i).value='');
+  $('login-email').value=email; show('box-login');
+}
+async function doLogin(){
+  const email=$('login-email').value.trim(), password=$('login-pass').value;
+  const {data,error}=await sb.auth.signInWithPassword({email,password});
+  if(error) return toast('Credenciales incorrectas o cuenta sin confirmar.','err');
+  session=data.session; afterAuth();
+}
+async function resetPass(){
+  const email=$('login-email').value.trim();
+  if(!email) return toast('Escriba su email arriba y vuelva a pulsar el enlace.','err');
+  const {error}=await sb.auth.resetPasswordForEmail(email);
+  /* CONFIG_LOG: Mensaje de recuperación de contraseña. */
+  toast(error?('Error: '+error.message):'Le enviamos un correo para restablecer su contraseña.', error?'err':'ok');
+}
+async function logout(){
+  if(adminChannel){ sb.removeChannel(adminChannel); adminChannel=null; }
+  await sb.auth.signOut(); session=null; profile=null;
+  $('userbox').innerHTML=''; $('login-pass').value='';
+  $('view-user').classList.add('hidden'); $('view-admin').classList.add('hidden');
+  $('view-landing').classList.remove('hidden'); show('box-login');
+}
+async function afterAuth(){
+  const {data,error}=await sb.from('profiles').select('*').eq('id',session.user.id).single();
+  if(error||!data){ toast('No se encontró su perfil. Contacte al organizador.','err'); return logout(); }
+  profile=data; renderUserbox(); $('view-landing').classList.add('hidden');
+  if(profile.role==='admin'||profile.role==='superadmin'){
+    $('view-user').classList.add('hidden'); $('view-admin').classList.remove('hidden');
+    $('atab-roles').classList.toggle('hidden', profile.role!=='superadmin');
+    adminTab('envios'); await renderAdmin(); subscribeRealtime();
+  }else{
+    $('view-admin').classList.add('hidden'); $('view-user').classList.remove('hidden');
+    prefillInscripcion(); initAutores(); userTab('envio'); await renderMisEnvios();
+  }
+}
+function renderUserbox(){
+  const r=profile.role==='superadmin'?'Superadministrador':profile.role==='admin'?'Administrador':'Participante';
+  $('userbox').innerHTML=`<span><span class="role">${r}</span><br>${profile.nombres} ${profile.ap}</span><button class="btn ghost sm" onclick="logout()">Salir</button>`;
+}
+
+/* ===== ENVÍO + STORAGE ===== */
+function userTab(w){$('upane-envio').classList.toggle('hidden',w!=='envio');$('upane-insc').classList.toggle('hidden',w!=='insc');$('utab-envio').classList.toggle('active',w==='envio');$('utab-insc').classList.toggle('active',w==='insc');}
+function initAutores(){$('autores-list').innerHTML='';addAutor(`${profile.nombres} ${profile.ap} ${profile.am||''}`.trim(),profile.afil);}
+function addAutor(nombre='',afil=''){const d=document.createElement('div');d.className='row';d.style.marginBottom='8px';
+  d.innerHTML=`<div class="field" style="margin:0"><input placeholder="Nombre del autor" class="aut-nombre" value="${nombre.replace(/"/g,'&quot;')}"></div>
+  <div class="field" style="margin:0"><input placeholder="Afiliación" class="aut-afil" value="${afil.replace(/"/g,'&quot;')}"></div>
+  <button class="btn ghost sm" style="align-self:center" onclick="this.parentElement.remove()">×</button>`;
+  $('autores-list').appendChild(d);}
+function fileChosen(){const f=$('w-file').files[0],b=$('filebox');if(f){chosenFile=f;b.textContent='Archivo seleccionado: '+f.name;b.classList.add('ok');}}
+
+async function submitWork(){
+  const titulo=$('w-titulo').value.trim(),keywords=$('w-keywords').value.trim(),area=$('w-area').value,formato=$('w-formato').value;
+  const autores=[...document.querySelectorAll('#autores-list .row')].map(r=>({nombre:r.querySelector('.aut-nombre').value.trim(),afil:r.querySelector('.aut-afil').value.trim()})).filter(a=>a.nombre);
+  if(!titulo||!keywords||!area||!formato||!autores.length||!chosenFile) return toast('Complete todos los campos y adjunte el archivo.','err');
+  $('btn-submit').disabled=true; $('btn-submit').textContent='Subiendo…';
+  const path=`${session.user.id}/${Date.now()}_${chosenFile.name}`;
+  const up=await sb.storage.from('trabajos').upload(path, chosenFile);
+  if(up.error){ $('btn-submit').disabled=false; $('btn-submit').textContent='Enviar para evaluación'; return toast('Error al subir el archivo: '+up.error.message,'err'); }
+  const {error}=await sb.from('works').insert({owner_id:session.user.id,titulo,keywords,area,formato,autores,archivo_path:path,archivo_name:chosenFile.name,estado:'pendiente',bloqueado:true});
+  $('btn-submit').disabled=false; $('btn-submit').textContent='Enviar para evaluación';
+  if(error) return toast('Error al guardar el trabajo: '+error.message,'err');
+  /* CONFIG_LOG: Modificar este mensaje de confirmación de envío para evaluación. */
+  toast('Trabajo enviado. Su documento queda cerrado a edición y pasa a evaluación. Recibirá la resolución por correo.','ok');
+  $('w-titulo').value='';$('w-keywords').value='';$('w-area').value='';$('w-formato').value='';chosenFile=null;
+  const b=$('filebox');b.textContent='Haga clic para subir su documento (PDF / DOCX)';b.classList.remove('ok');
+  initAutores(); renderMisEnvios();
+}
+function estadoTag(e){return e==='aceptado'?'<span class="tag acc">Aceptado</span>':e==='rechazado'?'<span class="tag rej">Rechazado</span>':'<span class="tag pend">En evaluación</span>';}
+async function renderMisEnvios(){
+  const {data}=await sb.from('works').select('*').eq('owner_id',session.user.id).order('created_at',{ascending:false});
+  const c=$('mis-envios');
+  if(!data||!data.length){c.innerHTML='<div class="empty">Aún no ha enviado trabajos.</div>';return;}
+  c.innerHTML='<table><thead><tr><th>Título</th><th>Formato</th><th>Estado</th></tr></thead><tbody>'+
+    data.map(w=>`<tr><td>${w.titulo}</td><td>${w.formato}</td><td>${estadoTag(w.estado)}</td></tr>`).join('')+'</tbody></table>';
+}
+
+/* ===== INSCRIPCIÓN ===== */
+function prefillInscripcion(){$('i-nombre').value=`${profile.nombres} ${profile.ap} ${profile.am||''}`.trim();$('i-afil').value=profile.afil;$('i-email').value=profile.email;updateTarifa();}
+function pick(btn){const k=btn.dataset.k;document.querySelectorAll(`#seg-${k} button`).forEach(b=>b.classList.remove('on'));btn.classList.add('on');pricePick[k]=btn.dataset.v;updateTarifa();}
+function updateTarifa(){const t=TARIFAS[pricePick.momento][pricePick.tipo][pricePick.socio];$('tarifa').textContent=fmt(t);
+  $('tarifa-detalle').textContent=`${pricePick.momento==='early'?'Early Bird':'Tardía'} · ${pricePick.tipo==='estudiante'?'Estudiante':'Profesional'} · ${pricePick.socio==='socio'?'Socio SOCHER':'No socio'}`;}
+function renderMatriz(){const rows=[['Estudiante · Socio SOCHER','estudiante','socio'],['Estudiante · No socio','estudiante','nosocio'],['Profesional · Socio SOCHER','profesional','socio'],['Profesional · No socio','profesional','nosocio']];
+  $('matriz-precios').innerHTML=rows.map(([l,t,s])=>`<tr><td>${l}</td><td>${fmt(TARIFAS.early[t][s])}</td><td>${fmt(TARIFAS.late[t][s])}</td></tr>`).join('');}
+async function goPay(){
+  const t=TARIFAS[pricePick.momento][pricePick.tipo][pricePick.socio];
+  const {error}=await sb.from('inscripciones').upsert({user_id:session.user.id,momento:pricePick.momento,tipo:pricePick.tipo,socio:pricePick.socio,tarifa:t},{onConflict:'user_id'});
+  if(error) return toast('No se pudo registrar la inscripción: '+error.message,'err');
+  /* CONFIG_LOG: Redirección a la pasarela externa. */
+  window.open(URL_PASARELA+`?monto=${t}&email=${encodeURIComponent(profile.email)}`,'_blank');
+  toast('Inscripción registrada. Redirigiendo a la pasarela de pago.','ok');
+}
+
+/* ===== ADMIN ===== */
+function adminTab(w){['envios','insc','roles'].forEach(t=>{$('apane-'+t)?.classList.toggle('hidden',t!==w);$('atab-'+t)?.classList.toggle('active',t===w);});}
+async function renderAdmin(){await Promise.all([renderAdminEnvios(),renderAdminInsc()]);if(profile.role==='superadmin'){await renderRoles();await renderSuperWorks();}}
+async function fetchProfilesMap(){const {data}=await sb.from('profiles').select('id,nombres,ap,afil,email');const m={};(data||[]).forEach(p=>m[p.id]=p);return m;}
+
+async function renderAdminEnvios(){
+  const [{data:works},pmap]=await Promise.all([sb.from('works').select('*').order('created_at',{ascending:false}),fetchProfilesMap()]);
+  const tb=$('admin-envios');
+  if(!works||!works.length){tb.innerHTML='<tr><td colspan="7" class="empty">No hay trabajos recibidos.</td></tr>';return;}
+  tb.innerHTML=works.map(w=>{const u=pmap[w.owner_id];
+    return `<tr><td>${w.titulo}</td><td>${u?u.nombres+' '+u.ap:'—'}</td><td>${w.area}</td><td>${w.formato}</td>
+    <td><a href="#" onclick="downloadWork('${w.archivo_path}');return false">${w.archivo_name||'archivo'}</a></td>
+    <td>${estadoTag(w.estado)}</td>
+    <td style="white-space:nowrap"><button class="btn ok sm" onclick="setEstado('${w.id}','aceptado')" ${w.estado==='aceptado'?'disabled':''}>Aceptar</button>
+    <button class="btn no sm" onclick="setEstado('${w.id}','rechazado')" ${w.estado==='rechazado'?'disabled':''}>Rechazar</button></td></tr>`;}).join('');
+}
+async function downloadWork(path){
+  const {data,error}=await sb.storage.from('trabajos').createSignedUrl(path,120);
+  if(error) return toast('No se pudo abrir el archivo: '+error.message,'err');
+  window.open(data.signedUrl,'_blank');
+}
+async function setEstado(id,estado){
+  const {error}=await sb.from('works').update({estado}).eq('id',id);
+  if(error) return toast('No se pudo actualizar (¿permisos?): '+error.message,'err');
+  const {data:w}=await sb.from('works').select('*').eq('id',id).single();
+  const pmap=await fetchProfilesMap(); const u=pmap[w.owner_id];
+  if(estado==='aceptado') sendEmailAceptacion(u,w); else sendEmailRechazo(u,w);
+  toast(estado==='aceptado'?'Trabajo aceptado. Correo de aceptación encolado.':'Trabajo rechazado. Correo de notificación encolado.', estado==='aceptado'?'ok':'err');
+}
+async function renderAdminInsc(){
+  const [{data:ins},{data:works},pmap]=await Promise.all([sb.from('inscripciones').select('*'),sb.from('works').select('owner_id,keywords,area'),fetchProfilesMap()]);
+  const tb=$('admin-insc');
+  if(!ins||!ins.length){tb.innerHTML='<tr><td colspan="6" class="empty">No hay inscripciones registradas.</td></tr>';return;}
+  tb.innerHTML=ins.map(i=>{const u=pmap[i.user_id];const mine=(works||[]).filter(w=>w.owner_id===i.user_id);
+    const envio=mine.length?`<span class="tag si">Sí (${mine.length})</span>`:'<span class="tag no">No</span>';
+    const kws=mine.map(w=>w.keywords).join(' · ')||'—';const areas=[...new Set(mine.map(w=>w.area))].join(', ')||'—';
+    return `<tr><td>${u?u.nombres+' '+u.ap:i.user_id}</td><td>${u?u.afil:'—'}</td>
+    <td>${fmt(i.tarifa)}<br><span style="color:var(--niebla);font-size:.74rem">${i.tipo==='estudiante'?'Estudiante':'Profesional'} · ${i.socio==='socio'?'Socio':'No socio'}</span></td>
+    <td>${envio}</td><td>${kws}</td><td>${areas}</td></tr>`;}).join('');
+}
+async function renderRoles(){
+  const {data}=await sb.from('profiles').select('*').order('created_at');
+  $('admin-roles').innerHTML=(data||[]).map(u=>{
+    const rt=u.role==='superadmin'?'<span class="tag admin">Superadmin</span>':u.role==='admin'?'<span class="tag admin">Administrador</span>':'<span class="tag no">Participante</span>';
+    let acc;
+    if(u.role==='superadmin') acc='<span style="color:var(--niebla);font-size:.8rem">—</span>';
+    else if(u.role==='admin') acc=`<button class="btn ghost sm" onclick="setRole('${u.id}','user')">Quitar admin</button> <button class="btn danger sm" onclick="deleteUser('${u.id}','${(u.nombres+' '+u.ap).replace(/'/g,"")}')">Eliminar</button>`;
+    else acc=`<button class="btn sm" onclick="setRole('${u.id}','admin')">Hacer admin</button> <button class="btn danger sm" onclick="deleteUser('${u.id}','${(u.nombres+' '+u.ap).replace(/'/g,"")}')">Eliminar</button>`;
+    return `<tr><td>${u.nombres} ${u.ap}</td><td>${u.email}</td><td>${rt}</td><td style="white-space:nowrap">${acc}</td></tr>`;
+  }).join('');
+}
+async function setRole(id,role){
+  const {error}=await sb.from('profiles').update({role}).eq('id',id);
+  if(error) return toast('No se pudo cambiar el rol: '+error.message,'err');
+  toast(role==='admin'?'Usuario ahora es Administrador.':'Rol de administrador removido.','ok'); renderAdmin();
+}
+async function deleteUser(id,nombre){
+  if(!confirm(`¿Eliminar permanentemente a ${nombre} y todos sus registros? Irreversible.`)) return;
+  const {error}=await sb.from('profiles').delete().eq('id',id);
+  if(error) return toast('No se pudo eliminar: '+error.message,'err');
+  toast('Usuario y sus registros eliminados.','err'); renderAdmin();
+}
+async function renderSuperWorks(){
+  const [{data:works},pmap]=await Promise.all([sb.from('works').select('*').order('created_at',{ascending:false}),fetchProfilesMap()]);
+  const tb=$('super-works');
+  if(!works||!works.length){tb.innerHTML='<tr><td colspan="4" class="empty">No hay trabajos en el sistema.</td></tr>';return;}
+  tb.innerHTML=works.map(w=>{const u=pmap[w.owner_id];
+    return `<tr><td>${w.titulo}</td><td>${u?u.nombres+' '+u.ap:'—'}</td><td>${estadoTag(w.estado)}</td>
+    <td><button class="btn danger sm" onclick="deleteWork('${w.id}','${w.archivo_path}')">Eliminar</button></td></tr>`;}).join('');
+}
+async function deleteWork(id,path){
+  if(!confirm('¿Eliminar permanentemente este trabajo? Irreversible.')) return;
+  if(path) await sb.storage.from('trabajos').remove([path]);
+  const {error}=await sb.from('works').delete().eq('id',id);
+  if(error) return toast('No se pudo eliminar: '+error.message,'err');
+  toast('Trabajo eliminado permanentemente.','err'); renderAdmin();
+}
+
+/* ===== REALTIME ===== */
+function subscribeRealtime(){
+  if(adminChannel) return;
+  adminChannel=sb.channel('admin-live')
+    .on('postgres_changes',{event:'*',schema:'public',table:'works'},()=>{renderAdminEnvios();if(profile.role==='superadmin')renderSuperWorks();})
+    .on('postgres_changes',{event:'*',schema:'public',table:'inscripciones'},()=>renderAdminInsc())
+    .on('postgres_changes',{event:'*',schema:'public',table:'profiles'},()=>{renderAdminInsc();if(profile.role==='superadmin')renderRoles();})
+    .subscribe();
+}
+
+/* ===== CORREOS AUTOMÁTICOS =====
+   El navegador no envía correo directamente. Recomendado: Edge Function
+   de Supabase 'enviar-correo' que reciba {to,asunto,cuerpo} y use Resend/SendGrid.
+   CONFIG_LOG: ajustar el nombre de la Edge Function. */
+async function dispatchEmail(to,asunto,cuerpo){
+  try{ await sb.functions.invoke('enviar-correo',{body:{to,asunto,cuerpo}}); }
+  catch(e){ console.log('--- EMAIL (función no configurada) ---\nPara:'+to+'\n'+asunto+'\n\n'+cuerpo); }
+}
+function sendEmailAceptacion(u,w){
+  const nombre=u?`${u.nombres} ${u.ap}`:'autor/a';
+  /* TODO: Personalizar plantilla de email de ACEPTACIÓN */
+  const asunto='SOCHER 2026 — Su trabajo ha sido aceptado';
+  const cuerpo=`Estimado/a ${nombre}:
+
+Nos complace informarle que su trabajo "${w.titulo}" ha sido ACEPTADO para su presentación en el XV Congreso de la Sociedad Chilena de Economía Regional (SOCHER 2026), del 18 al 20 de noviembre de 2026 en el Campus Guayacán de la Universidad Católica del Norte, Coquimbo.
+
+Área temática: ${w.area}
+Formato: ${w.formato}
+
+En las próximas semanas le enviaremos el programa y las indicaciones para su presentación. Recuerde completar su inscripción si aún no lo ha hecho.
+
+Cordialmente,
+Comité Organizador SOCHER 2026`;
+  dispatchEmail(u?.email,asunto,cuerpo);
+}
+function sendEmailRechazo(u,w){
+  const nombre=u?`${u.nombres} ${u.ap}`:'autor/a';
+  /* TODO: Personalizar plantilla de email de RECHAZO */
+  const asunto='SOCHER 2026 — Resultado de la evaluación de su trabajo';
+  const cuerpo=`Estimado/a ${nombre}:
+
+Le agradecemos el envío de su trabajo "${w.titulo}" al XV Congreso de la Sociedad Chilena de Economía Regional (SOCHER 2026).
+
+Tras la evaluación del comité científico, lamentamos informarle que en esta ocasión su trabajo no ha sido seleccionado para su presentación. El proceso fue altamente competitivo y esta decisión no desmerece el valor de su investigación.
+
+Le invitamos cordialmente a participar del congreso como asistente y a considerar futuras convocatorias.
+
+Cordialmente,
+Comité Organizador SOCHER 2026`;
+  dispatchEmail(u?.email,asunto,cuerpo);
+}
+</script>
+</body>
+</html>
