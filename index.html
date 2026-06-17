@@ -250,6 +250,7 @@ const URL_PASARELA = 'https://pasarela-de-pago.example.com/socher2026';
 let sb=null, session=null, profile=null;
 let pricePick={momento:'early',tipo:'estudiante',socio:'socio'};
 let chosenFile=null, adminChannel=null;
+let vistaActual='user'; // 'admin' | 'user' — para gestores que alternan de vista
 
 const $=id=>document.getElementById(id);
 function show(id){['box-login','box-register','box-recovery'].forEach(b=>$(b)?.classList.add('hidden'));$(id)?.classList.remove('hidden');}
@@ -367,17 +368,41 @@ async function afterAuth(){
   console.log('[SOCHER] Sesión iniciada. Rol detectado:', profile.role, '· email:', profile.email);
   renderUserbox(); $('view-landing').classList.add('hidden');
   if(profile.role==='admin'||profile.role==='superadmin'){
+    vistaActual='admin'; participacionInit=false;
     $('view-user').classList.add('hidden'); $('view-admin').classList.remove('hidden');
     $('atab-roles').classList.toggle('hidden', profile.role!=='superadmin');
     adminTab('envios'); await renderAdmin(); subscribeRealtime();
+    renderUserbox(); // re-pinta con el botón de alternancia ya que vistaActual está fijado
   }else{
+    vistaActual='user';
     $('view-admin').classList.add('hidden'); $('view-user').classList.remove('hidden');
     prefillInscripcion(); initAutores(); userTab('envio'); await renderMisEnvios();
   }
 }
 function renderUserbox(){
   const r=profile.role==='superadmin'?'Superadministrador':profile.role==='admin'?'Administrador':'Participante';
-  $('userbox').innerHTML=`<span><span class="role">${r}</span><br>${profile.nombres} ${profile.ap}</span><button class="btn ghost sm" onclick="logout()">Salir</button>`;
+  const esGestor = profile.role==='admin'||profile.role==='superadmin';
+  // Botón de alternancia visible solo para gestores; el texto depende de la vista actual.
+  const toggleBtn = esGestor
+    ? `<button class="btn ghost sm" id="btn-toggle-vista" onclick="toggleVista()">${vistaActual==='admin'?'Mi participación':'Volver a Gestión'}</button>`
+    : '';
+  $('userbox').innerHTML=`<span><span class="role">${r}</span><br>${profile.nombres} ${profile.ap}</span>${toggleBtn}<button class="btn ghost sm" onclick="logout()">Salir</button>`;
+}
+
+// Alterna, para gestores, entre el panel de Gestión y la vista de participación (envío/inscripción).
+let participacionInit=false;
+function toggleVista(){
+  if(vistaActual==='admin'){
+    vistaActual='user';
+    $('view-admin').classList.add('hidden'); $('view-user').classList.remove('hidden');
+    if(!participacionInit){ prefillInscripcion(); initAutores(); userTab('envio'); participacionInit=true; }
+    renderMisEnvios();
+  }else{
+    vistaActual='admin';
+    $('view-user').classList.add('hidden'); $('view-admin').classList.remove('hidden');
+    adminTab('envios'); renderAdmin();
+  }
+  renderUserbox();
 }
 
 /* ===== ENVÍO + STORAGE ===== */
