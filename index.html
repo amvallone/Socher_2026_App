@@ -179,7 +179,7 @@
           <div class="field"><label>Afiliación</label><input id="i-afil" readonly></div></div>
         <div class="field"><label>Email</label><input id="i-email" readonly></div>
         <label style="margin-top:8px">Categoría de inscripción</label>
-        <div class="seg" id="seg-momento"><button class="on" data-k="momento" data-v="early" onclick="pick(this)">Early Bird</button><button data-k="momento" data-v="late" onclick="pick(this)">Tardía</button></div>
+        <div class="seg" id="seg-momento"><button class="on" data-k="momento" data-v="early" onclick="pick(this)">Early Bird (hasta 10 sept)</button><button data-k="momento" data-v="late" onclick="pick(this)">Tardía (desde 11 sept)</button></div>
         <div class="seg" id="seg-tipo"><button class="on" data-k="tipo" data-v="estudiante" onclick="pick(this)">Estudiante</button><button data-k="tipo" data-v="profesional" onclick="pick(this)">Profesional</button></div>
         <div class="seg" id="seg-socio"><button class="on" data-k="socio" data-v="socio" onclick="pick(this)">Socio SOCHER</button><button data-k="socio" data-v="nosocio" onclick="pick(this)">No socio</button></div>
         <div style="margin:22px 0;padding:20px;border:1px solid var(--cobre);border-radius:8px;text-align:center">
@@ -190,7 +190,7 @@
         <button class="btn" style="width:100%" onclick="goPay()">Ir a la pasarela de pago</button>
       </div>
       <div class="panel"><h2>Matriz de tarifas (CLP)</h2><p class="desc">Referencia completa de las tarifas.</p>
-        <table><thead><tr><th>Categoría</th><th>Early Bird</th><th>Tardía</th></tr></thead><tbody id="matriz-precios"></tbody></table></div>
+        <table><thead><tr><th>Categoría</th><th>Early Bird<br><span style="font-weight:400;color:var(--niebla);font-size:.7rem">hasta 10 sept 2026</span></th><th>Tardía<br><span style="font-weight:400;color:var(--niebla);font-size:.7rem">desde 11 sept 2026</span></th></tr></thead><tbody id="matriz-precios"></tbody></table></div>
     </div>
   </main>
 </section>
@@ -237,8 +237,8 @@ const SUPABASE_ANON_KEY = 'sb_publishable_3oZ0afFOwqc1TzZC2FB5MQ_Xt8aQv7a';
 
 /* ---- MATRIZ DE TARIFAS (CLP). CONFIG_LOG: editar valores. ---- */
 const TARIFAS = {
-  early:{ estudiante:{socio:35000,nosocio:55000}, profesional:{socio:90000, nosocio:130000} },
-  late: { estudiante:{socio:50000,nosocio:75000}, profesional:{socio:120000,nosocio:170000} }
+  early:{ estudiante:{socio:120000,nosocio:150000}, profesional:{socio:180000, nosocio:205000} },
+  late: { estudiante:{socio:150000,nosocio:180000}, profesional:{socio:205000, nosocio:235000} }
 };
 /* CONFIG_LOG: URL real de la pasarela de pago (Webpay, Flow, etc.) */
 const URL_PASARELA = 'https://pasarela-de-pago.example.com/socher2026';
