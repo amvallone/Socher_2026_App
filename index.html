@@ -122,10 +122,16 @@
         <button class="btn ghost" style="flex:1" onclick="show('box-login')">Volver a Iniciar sesión</button>
       </div>
     </div>
+
+    <div class="panel hidden" id="box-recovery">
+      <h2>Definir nueva contraseña</h2>
+      <p class="desc">Ingrese y confirme su nueva contraseña para completar la recuperación.</p>
+      <div class="field"><label>Nueva contraseña <span class="req">*</span></label><input type="password" id="rec-pass" autocomplete="new-password"></div>
+      <div class="field"><label>Repetir nueva contraseña <span class="req">*</span></label><input type="password" id="rec-pass2" autocomplete="new-password"></div>
+      <button class="btn" style="width:100%" onclick="saveNewPassword()">Guardar nueva contraseña</button>
+    </div>
   </main>
 </section>
-
-<section id="view-user" class="hidden">
   <main>
     <div class="tabs">
       <div class="tab active" id="utab-envio" onclick="userTab('envio')">Envío de trabajos</div>
@@ -241,7 +247,7 @@ let pricePick={momento:'early',tipo:'estudiante',socio:'socio'};
 let chosenFile=null, adminChannel=null;
 
 const $=id=>document.getElementById(id);
-function show(id){['box-login','box-register'].forEach(b=>$(b)?.classList.add('hidden'));$(id)?.classList.remove('hidden');}
+function show(id){['box-login','box-register','box-recovery'].forEach(b=>$(b)?.classList.add('hidden'));$(id)?.classList.remove('hidden');}
 function toast(m,k){const t=$('toast');t.textContent=m;t.className='toast show'+(k?(' '+k):'');clearTimeout(t._t);t._t=setTimeout(()=>t.className='toast',4500);}
 function fmt(n){return '$'+Number(n).toLocaleString('es-CL');}
 
@@ -249,9 +255,41 @@ function fmt(n){return '$'+Number(n).toLocaleString('es-CL');}
   if(SUPABASE_URL.includes('TU-PROYECTO')||SUPABASE_ANON_KEY.includes('TU_ANON_KEY')) $('setup-warn').classList.remove('hidden');
   sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   renderMatriz();
+
+  // ¿Volvemos desde un enlace de recuperación de contraseña?
+  // Supabase pone type=recovery en el hash (#...type=recovery) o en ?code=...
+  const hash=window.location.hash||'';
+  const esRecovery = hash.includes('type=recovery') || new URLSearchParams(window.location.search).has('code') && hash.includes('recovery');
+  if(hash.includes('type=recovery')){
+    // El cliente de Supabase procesa el token del hash y abre una sesión temporal de recuperación.
+    $('view-landing').classList.remove('hidden');
+    mostrarRecuperacion();
+    return; // no seguimos al flujo normal
+  }
+
   sb.auth.getSession().then(({data})=>{ if(data.session){ session=data.session; afterAuth(); } else { show('box-login'); } });
-  sb.auth.onAuthStateChange((_e,s)=>{ session=s; });
+  sb.auth.onAuthStateChange((_e,s)=>{ session=s; if(_e==='PASSWORD_RECOVERY'){ mostrarRecuperacion(); } });
 })();
+
+function mostrarRecuperacion(){
+  $('view-user')?.classList.add('hidden');
+  $('view-admin')?.classList.add('hidden');
+  $('view-landing')?.classList.remove('hidden');
+  show('box-recovery');
+}
+
+async function saveNewPassword(){
+  const p=$('rec-pass').value, p2=$('rec-pass2').value;
+  if(!p||p.length<6) return toast('La contraseña debe tener al menos 6 caracteres.','err');
+  if(p!==p2) return toast('Las contraseñas no coinciden.','err');
+  const {error}=await sb.auth.updateUser({password:p});
+  if(error) return toast('No se pudo actualizar la contraseña: '+error.message,'err');
+  toast('Contraseña actualizada. Ya puede iniciar sesión con la nueva.','ok');
+  // limpiar el hash de la URL y volver al login
+  history.replaceState(null,'',window.location.pathname);
+  $('rec-pass').value=''; $('rec-pass2').value='';
+  show('box-login');
+}
 
 /* ===== AUTH ===== */
 async function doRegister(){
@@ -295,9 +333,12 @@ async function doLogin(){
 async function resetPass(){
   const email=$('login-email').value.trim();
   if(!email) return toast('Escriba su email arriba y vuelva a pulsar el enlace.','err');
-  const {error}=await sb.auth.resetPasswordForEmail(email);
+  // redirectTo: a dónde vuelve el enlace del correo. Usa la URL actual de la app
+  // (debe estar autorizada en Supabase → Authentication → URL Configuration → Redirect URLs).
+  const redirectTo = window.location.origin + window.location.pathname;
+  const {error}=await sb.auth.resetPasswordForEmail(email, { redirectTo });
   /* CONFIG_LOG: Mensaje de recuperación de contraseña. */
-  toast(error?('Error: '+error.message):'Le enviamos un correo para restablecer su contraseña.', error?'err':'ok');
+  toast(error?('Error: '+error.message):'Le enviamos un correo para restablecer su contraseña. Al volver, podrá definir una nueva.', error?'err':'ok');
 }
 async function logout(){
   if(adminChannel){ sb.removeChannel(adminChannel); adminChannel=null; }
@@ -507,20 +548,38 @@ async function renderRoles(){
     const rt=u.role==='superadmin'?'<span class="tag admin">Superadmin</span>':u.role==='admin'?'<span class="tag admin">Administrador</span>':'<span class="tag no">Participante</span>';
     let acc;
     if(u.role==='superadmin') acc='<span style="color:var(--niebla);font-size:.8rem">—</span>';
-    else if(u.role==='admin') acc=`<button class="btn ghost sm" onclick="setRole('${u.id}','user')">Quitar admin</button> <button class="btn danger sm" onclick="deleteUser('${u.id}','${(u.nombres+' '+u.ap).replace(/'/g,"")}')">Eliminar</button>`;
-    else acc=`<button class="btn sm" onclick="setRole('${u.id}','admin')">Hacer admin</button> <button class="btn danger sm" onclick="deleteUser('${u.id}','${(u.nombres+' '+u.ap).replace(/'/g,"")}')">Eliminar</button>`;
+    else if(u.role==='admin') acc=`<button class="btn ghost sm" onclick="setRole('${u.id}','user')">Quitar admin</button> <button class="btn ghost sm" onclick="changeUserPassword('${u.id}','${u.email}')">Cambiar contraseña</button> <button class="btn danger sm" onclick="deleteUser('${u.id}','${(u.nombres+' '+u.ap).replace(/'/g,"")}')">Eliminar</button>`;
+    else acc=`<button class="btn sm" onclick="setRole('${u.id}','admin')">Hacer admin</button> <button class="btn ghost sm" onclick="changeUserPassword('${u.id}','${u.email}')">Cambiar contraseña</button> <button class="btn danger sm" onclick="deleteUser('${u.id}','${(u.nombres+' '+u.ap).replace(/'/g,"")}')">Eliminar</button>`;
     return `<tr><td>${u.nombres} ${u.ap}</td><td>${u.email}</td><td>${rt}</td><td style="white-space:nowrap">${acc}</td></tr>`;
   }).join('');
 }
 async function setRole(id,role){
-  const {error}=await sb.from('profiles').update({role}).eq('id',id);
+  const {data,error}=await sb.from('profiles').update({role}).eq('id',id).select();
   if(error) return toast('No se pudo cambiar el rol: '+error.message,'err');
+  if(!data||!data.length) return toast('No se modificó el rol. Probablemente las políticas (RLS) no permiten esta acción a su usuario.','err');
   toast(role==='admin'?'Usuario ahora es Administrador.':'Rol de administrador removido.','ok'); renderAdmin();
+}
+// Cambiar la contraseña de OTRO usuario requiere privilegios admin de Auth,
+// que sólo existen en el servidor. Llamamos a la Edge Function 'admin-set-password',
+// que verifica que quien llama es superadmin y usa la service_role key (nunca en el frontend).
+async function changeUserPassword(userId,email){
+  const nueva=prompt(`Nueva contraseña para ${email} (mínimo 6 caracteres):`);
+  if(!nueva) return;
+  if(nueva.length<6) return toast('La contraseña debe tener al menos 6 caracteres.','err');
+  const {data,error}=await sb.functions.invoke('admin-set-password',{body:{user_id:userId,new_password:nueva}});
+  if(error){
+    let detalle=''; try{ detalle=await error.context?.text?.()||''; }catch(_){}
+    console.error('[SOCHER] admin-set-password error:',error,detalle);
+    return toast('No se pudo cambiar la contraseña. ¿Está desplegada la función "admin-set-password"? Revise la consola.','err');
+  }
+  if(data&&data.error) return toast('No se pudo cambiar la contraseña: '+data.error,'err');
+  toast(`Contraseña de ${email} actualizada.`,'ok');
 }
 async function deleteUser(id,nombre){
   if(!confirm(`¿Eliminar permanentemente a ${nombre} y todos sus registros? Irreversible.`)) return;
-  const {error}=await sb.from('profiles').delete().eq('id',id);
+  const {data,error}=await sb.from('profiles').delete().eq('id',id).select();
   if(error) return toast('No se pudo eliminar: '+error.message,'err');
+  if(!data||!data.length) return toast('No se eliminó el usuario. Las políticas (RLS) no permitieron la operación. Verifique que la política de DELETE en profiles esté instalada.','err');
   toast('Usuario y sus registros eliminados.','err'); renderAdmin();
 }
 async function renderSuperWorks(){
@@ -534,8 +593,9 @@ async function renderSuperWorks(){
 async function deleteWork(id,path){
   if(!confirm('¿Eliminar permanentemente este trabajo? Irreversible.')) return;
   if(path) await sb.storage.from('trabajos').remove([path]);
-  const {error}=await sb.from('works').delete().eq('id',id);
+  const {data,error}=await sb.from('works').delete().eq('id',id).select();
   if(error) return toast('No se pudo eliminar: '+error.message,'err');
+  if(!data||!data.length) return toast('No se eliminó el trabajo. Las políticas (RLS) no permitieron la operación. Verifique la política de DELETE en works.','err');
   toast('Trabajo eliminado permanentemente.','err'); renderAdmin();
 }
 
