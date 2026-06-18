@@ -6,27 +6,15 @@
 <title>SOCHER 2026 — Congreso Sociedad Chilena de Estudios Regionales</title>
 <style>
   :root{
-    --abismo:#0a1d30;--abismo-bajo:#14506b;--mar:#143a55;--espuma:#f4efe6;
-    --turquesa:#34c2d6;--turquesa-claro:#5fd6e6;
-    --cobre:#c4622d;--cobre-claro:#e08a52;
-    --niebla:#8aa2b5;--linea:#27506e;--verde:#3f8a6e;--rojo:#b34a4a;--amarillo:#c9a227;
+    --abismo:#0c1f33;--mar:#13344f;--espuma:#f4efe6;--cobre:#c4622d;--cobre-claro:#e08a52;
+    --niebla:#7e93a6;--linea:#23445f;--verde:#3f8a6e;--rojo:#b34a4a;--amarillo:#c9a227;
     --radio:10px;--display:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
     --sans:"Inter","Segoe UI",system-ui,sans-serif;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  body{
-    font-family:var(--sans);color:var(--espuma);line-height:1.55;min-height:100vh;
-    /* Degradado navy → azul petróleo, como el afiche. fixed para que no se mueva al hacer scroll. */
-    background-color:var(--abismo);
-    background-image:
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100' viewBox='0 0 56 100'%3E%3Cg fill='none' stroke='%231d4965' stroke-width='1.2'%3E%3Cpath d='M28 0 L56 16 L56 50 L28 66 L0 50 L0 16 Z'/%3E%3Cpath d='M28 66 L56 82 L56 116 L28 132 L0 116 L0 82 Z'/%3E%3C/g%3E%3C/svg%3E"),
-      linear-gradient(160deg, var(--abismo) 0%, var(--abismo) 35%, var(--abismo-bajo) 100%);
-    background-position:0 0, 0 0;
-    background-repeat:repeat, no-repeat;
-    background-attachment:fixed, fixed;
-  }
-  .horizonte{height:3px;background:linear-gradient(90deg,var(--turquesa),var(--turquesa-claro) 55%,var(--cobre) 100%);border:none}
-  a{color:var(--turquesa-claro);text-decoration:none}a:hover{text-decoration:underline}
+  body{font-family:var(--sans);background:var(--abismo);color:var(--espuma);line-height:1.55;min-height:100vh}
+  .horizonte{height:3px;background:linear-gradient(90deg,var(--cobre),var(--cobre-claro) 60%,transparent);border:none}
+  a{color:var(--cobre-claro);text-decoration:none}a:hover{text-decoration:underline}
   button{font-family:var(--sans);cursor:pointer}input,select,textarea{font-family:var(--sans)}
   h1,h2,h3{font-family:var(--display);font-weight:600;line-height:1.1}
   .hidden{display:none !important}
@@ -36,36 +24,15 @@
   .brand .sub{color:var(--niebla);font-size:.78rem;letter-spacing:1.5px;text-transform:uppercase}
   .userbox{display:flex;align-items:center;gap:16px;font-size:.9rem}
   .userbox .role{color:var(--cobre-claro);font-size:.72rem;text-transform:uppercase;letter-spacing:1px}
-  .btn{background:var(--turquesa);color:#06212c;border:none;padding:10px 18px;border-radius:var(--radio);font-weight:700;font-size:.9rem;transition:.15s}
-  .btn:hover{background:var(--turquesa-claro)}
+  .btn{background:var(--cobre);color:#fff;border:none;padding:10px 18px;border-radius:var(--radio);font-weight:600;font-size:.9rem;transition:.15s}
+  .btn:hover{background:var(--cobre-claro)}
   .btn.ghost{background:transparent;border:1px solid var(--linea);color:var(--espuma)}
-  .btn.ghost:hover{border-color:var(--turquesa)}
+  .btn.ghost:hover{border-color:var(--cobre)}
   .btn.sm{padding:6px 12px;font-size:.8rem}.btn.ok{background:var(--verde)}.btn.no{background:var(--rojo)}.btn.danger{background:var(--rojo)}
   .btn:disabled{opacity:.4;cursor:not-allowed}
   main{max-width:1100px;margin:0 auto;padding:40px 32px 80px}.wrap-narrow{max-width:460px;margin:0 auto}
-  /* Afiche del congreso como fondo de la portada (pantalla de login). */
-  #view-landing{
-    position:relative;min-height:100vh;
-    background-image:url("afiche-socher2026.jpg");
-    background-size:cover;background-position:center top;background-attachment:fixed;
-  }
-  /* Capa muy leve para asegurar contraste del texto sobre el afiche sin ocultarlo. */
-  #view-landing::before{
-    content:"";position:absolute;inset:0;pointer-events:none;
-    background:linear-gradient(180deg, rgba(10,29,48,.35) 0%, rgba(10,29,48,.15) 45%, rgba(10,29,48,.45) 100%);
-  }
-  #view-landing > *{position:relative;z-index:1}
-  #view-landing .hero{border-bottom:none}
-  #view-landing .hero h1, #view-landing .hero .meta, #view-landing .hero .eyebrow{text-shadow:0 2px 12px rgba(0,0,0,.55)}
-  /* En la portada, el recuadro de login va semitransparente para dejar ver el afiche. */
-  #view-landing .panel{
-    background:rgba(20,58,85,.78);
-    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
-    border-color:rgba(95,214,230,.35);
-    box-shadow:0 16px 48px rgba(0,0,0,.5);
-  }
   .hero{padding:64px 32px 40px;text-align:center;border-bottom:1px solid var(--linea)}
-  .hero .eyebrow{color:var(--turquesa-claro);letter-spacing:3px;text-transform:uppercase;font-size:.78rem;margin-bottom:18px}
+  .hero .eyebrow{color:var(--cobre);letter-spacing:3px;text-transform:uppercase;font-size:.78rem;margin-bottom:18px}
   .hero h1{font-size:clamp(2.2rem,5vw,3.6rem);max-width:14ch;margin:0 auto 18px}
   .hero .meta{color:var(--niebla);font-size:1.05rem}.hero .meta strong{color:var(--espuma)}
   .panel{background:var(--mar);border:1px solid var(--linea);border-radius:var(--radio);padding:28px}
@@ -75,11 +42,11 @@
   label{display:block;font-size:.82rem;color:var(--niebla);margin-bottom:6px}label .req{color:var(--cobre)}
   input,select,textarea{width:100%;background:var(--abismo);border:1px solid var(--linea);color:var(--espuma);padding:11px 13px;border-radius:8px;font-size:.95rem}
   textarea{resize:vertical;min-height:90px}
-  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--turquesa)}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--cobre)}
   .row{display:flex;gap:14px}.row .field{flex:1}
   .filebox{border:1.5px dashed var(--linea);border-radius:8px;padding:18px;text-align:center;color:var(--niebla);font-size:.88rem;cursor:pointer}
   .filebox.ok{border-color:var(--verde);color:var(--espuma)}
-  .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(120%);background:var(--mar);border:1px solid var(--turquesa);border-left:4px solid var(--turquesa);color:var(--espuma);padding:16px 22px;border-radius:8px;max-width:480px;box-shadow:0 12px 40px rgba(0,0,0,.5);transition:transform .35s ease;z-index:50;font-size:.92rem}
+  .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(120%);background:var(--mar);border:1px solid var(--cobre);border-left:4px solid var(--cobre);color:var(--espuma);padding:16px 22px;border-radius:8px;max-width:480px;box-shadow:0 12px 40px rgba(0,0,0,.5);transition:transform .35s ease;z-index:50;font-size:.92rem}
   .toast.show{transform:translateX(-50%) translateY(0)}
   .toast.ok{border-color:var(--verde);border-left-color:var(--verde)}.toast.err{border-color:var(--rojo);border-left-color:var(--rojo)}
   table{width:100%;border-collapse:collapse;font-size:.9rem}
@@ -91,11 +58,11 @@
   .tag.no{background:rgba(126,147,166,.18);color:var(--niebla)}.tag.admin{background:rgba(196,98,45,.2);color:var(--cobre-claro)}
   .tabs{display:flex;gap:4px;border-bottom:1px solid var(--linea);margin-bottom:28px}
   .tab{padding:12px 20px;color:var(--niebla);border-bottom:2px solid transparent;font-weight:600;font-size:.92rem}
-  .tab.active{color:var(--espuma);border-bottom-color:var(--turquesa)}
+  .tab.active{color:var(--espuma);border-bottom-color:var(--cobre)}
   .empty{color:var(--niebla);text-align:center;padding:40px;font-style:italic}
   .seg{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
   .seg button{background:var(--abismo);border:1px solid var(--linea);color:var(--niebla);padding:7px 14px;border-radius:20px;font-size:.82rem}
-  .seg button.on{border-color:var(--turquesa);color:var(--espuma)}
+  .seg button.on{border-color:var(--cobre);color:var(--espuma)}
   .live{display:inline-flex;align-items:center;gap:6px;font-size:.74rem;color:var(--niebla)}
   .live .dot{width:8px;height:8px;border-radius:50%;background:var(--verde);animation:pulse 2s infinite}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(63,138,110,.5)}70%{box-shadow:0 0 0 8px rgba(63,138,110,0)}100%{box-shadow:0 0 0 0 rgba(63,138,110,0)}}
@@ -182,7 +149,7 @@
         <p style="color:var(--niebla);font-size:.8rem;margin:-2px 0 8px">Indique nombre y apellido de cada autor. No es necesario que los coautores tengan cuenta.</p>
         <div id="autores-list"></div>
         <button class="btn ghost sm" style="margin:6px 0 18px" onclick="addAutor()">+ Agregar autor</button>
-        <div style="margin:0 0 18px;padding:14px 16px;border:1px solid var(--linea);border-left:3px solid var(--turquesa);border-radius:8px;background:rgba(52,194,214,.07)">
+        <div style="margin:0 0 18px;padding:14px 16px;border:1px solid var(--linea);border-left:3px solid var(--cobre);border-radius:8px;background:rgba(196,98,45,.06)">
           <div style="color:var(--niebla);font-size:.74rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Cita de la ponencia (APA)</div>
           <div id="apa-preview" style="font-family:var(--display);font-size:.98rem;line-height:1.5">La cita aparecerá aquí a medida que complete autores y título.</div>
         </div>
