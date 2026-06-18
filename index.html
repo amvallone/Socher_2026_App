@@ -72,11 +72,15 @@
   .toast.show{transform:translateX(-50%) translateY(0)}
   .toast.ok{border-color:var(--verde);border-left-color:var(--verde)}.toast.err{border-color:var(--rojo);border-left-color:var(--rojo)}
   table{width:100%;border-collapse:collapse;font-size:.9rem}
-  /* Contenedor con scroll horizontal: evita que tablas anchas desborden el panel. */
+  /* Contenedor con scroll horizontal solo como red de seguridad en pantallas muy estrechas. */
   .tabla-scroll{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
-  .tabla-scroll table{min-width:760px}
-  td.acciones{white-space:nowrap}
-  th,td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--linea);vertical-align:top}
+  /* Botones de acción apilados verticalmente: la columna queda angosta y nada se corta. */
+  td.acciones{white-space:nowrap;width:1%}
+  td.acciones .btn{display:block;width:100%;margin:0 0 6px}
+  td.acciones .btn:last-child{margin-bottom:0}
+  th,td{text-align:left;padding:10px 10px;border-bottom:1px solid var(--linea);vertical-align:top}
+  /* La columna Número no necesita ser ancha: suele mostrar solo el código o un guion. */
+  #admin-envios td:first-child{white-space:normal;word-break:break-word;max-width:120px}
   th{color:var(--niebla);font-size:.74rem;text-transform:uppercase;letter-spacing:1px;font-weight:600}
   .tag{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.72rem;font-weight:600}
   .tag.pend{background:rgba(201,162,39,.18);color:var(--amarillo)}.tag.acc{background:rgba(63,138,110,.2);color:#74c8a6}
@@ -566,12 +570,12 @@ async function renderAdminEnvios(){
   if(!works||!works.length){tb.innerHTML='<tr><td colspan="8" class="empty">No hay trabajos recibidos.</td></tr>';return;}
   tb.innerHTML=works.map(w=>{const u=pmap[w.owner_id];
     const autoresTxt=(w.autores||[]).map(a=>`${a.nombre||''} ${a.apellido||''}`.trim()+(a.afil?` (${a.afil})`:'')).join('; ')||'—';
-    return `<tr><td style="white-space:nowrap;font-family:var(--display);color:var(--cobre-claro)">${w.numero||'—'}</td>
+    return `<tr><td style="font-family:var(--display);color:var(--cobre-claro)">${w.numero||'—'}</td>
     <td>${w.titulo}<br><span style="color:var(--niebla);font-size:.78rem;font-family:var(--display)">${w.cita_apa||''}</span></td>
     <td>${autoresTxt}<br><span style="color:var(--niebla);font-size:.72rem">Contacto: ${u?u.nombres+' '+u.ap:'—'}</span></td><td>${w.area}</td><td>${w.formato}</td>
     <td><a href="#" onclick="downloadWork('${w.archivo_path}');return false">${w.archivo_name||'archivo'}</a></td>
     <td>${estadoTag(w.estado)}</td>
-    <td style="white-space:nowrap"><button class="btn ok sm" onclick="setEstado('${w.id}','aceptado')" ${w.estado==='aceptado'?'disabled':''}>Aceptar</button>
+    <td class="acciones"><button class="btn ok sm" onclick="setEstado('${w.id}','aceptado')" ${w.estado==='aceptado'?'disabled':''}>Aceptar</button>
     <button class="btn no sm" onclick="setEstado('${w.id}','rechazado')" ${w.estado==='rechazado'?'disabled':''}>Rechazar</button></td></tr>`;}).join('');
 }
 async function downloadWork(path){
