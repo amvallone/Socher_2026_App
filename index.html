@@ -72,6 +72,10 @@
   .toast.show{transform:translateX(-50%) translateY(0)}
   .toast.ok{border-color:var(--verde);border-left-color:var(--verde)}.toast.err{border-color:var(--rojo);border-left-color:var(--rojo)}
   table{width:100%;border-collapse:collapse;font-size:.9rem}
+  /* Contenedor con scroll horizontal: evita que tablas anchas desborden el panel. */
+  .tabla-scroll{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .tabla-scroll table{min-width:760px}
+  td.acciones{white-space:nowrap}
   th,td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--linea);vertical-align:top}
   th{color:var(--niebla);font-size:.74rem;text-transform:uppercase;letter-spacing:1px;font-weight:600}
   .tag{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.72rem;font-weight:600}
@@ -232,16 +236,16 @@
     </div>
     <div id="apane-envios"><div class="panel"><h2>Trabajos recibidos</h2>
       <p class="desc">Acepte o rechace cada trabajo. La acción notifica al autor y se refleja al instante para los demás administradores.</p>
-      <table><thead><tr><th>Número</th><th>Título</th><th>Autor</th><th>Área</th><th>Formato</th><th>Archivo</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="admin-envios"></tbody></table></div></div>
+      <div class="tabla-scroll"><table><thead><tr><th>Número</th><th>Título</th><th>Autor</th><th>Área</th><th>Formato</th><th>Archivo</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="admin-envios"></tbody></table></div></div></div>
     <div id="apane-insc" class="hidden"><div class="panel"><h2>Usuarios inscritos</h2>
       <p class="desc">Inscritos, con indicación de si han enviado trabajos y su detalle temático.</p>
-      <table><thead><tr><th>Nombre</th><th>Afiliación</th><th>Tarifa</th><th>¿Envió?</th><th>Palabras clave</th><th>Área temática</th></tr></thead><tbody id="admin-insc"></tbody></table></div></div>
+      <div class="tabla-scroll"><table><thead><tr><th>Nombre</th><th>Afiliación</th><th>Tarifa</th><th>¿Envió?</th><th>Palabras clave</th><th>Área temática</th></tr></thead><tbody id="admin-insc"></tbody></table></div></div></div>
     <div id="apane-roles" class="hidden">
       <div class="panel"><h2>Gestión de usuarios y roles</h2>
         <p class="desc">Otorgue o remueva permisos de administrador y elimine usuarios. Exclusivo del Superadministrador.</p>
-        <table><thead><tr><th>Usuario</th><th>Email</th><th>Rol</th><th>Acciones</th></tr></thead><tbody id="admin-roles"></tbody></table></div>
+        <div class="tabla-scroll"><table><thead><tr><th>Usuario</th><th>Email</th><th>Rol</th><th>Acciones</th></tr></thead><tbody id="admin-roles"></tbody></table></div></div>
       <div class="panel"><h2>Eliminar trabajos del sistema</h2><p class="desc">La eliminación es permanente e irreversible.</p>
-        <table><thead><tr><th>Título</th><th>Autor</th><th>Estado</th><th>Acción</th></tr></thead><tbody id="super-works"></tbody></table></div>
+        <div class="tabla-scroll"><table><thead><tr><th>Título</th><th>Autor</th><th>Estado</th><th>Acción</th></tr></thead><tbody id="super-works"></tbody></table></div></div>
     </div>
   </main>
 </section>
