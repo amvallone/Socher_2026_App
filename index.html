@@ -216,6 +216,7 @@
           <div class="field"><label>Afiliación</label><input id="i-afil" readonly></div></div>
         <div class="field"><label>Email</label><input id="i-email" readonly></div>
         <label style="margin-top:8px">Categoría de inscripción</label>
+        <p class="desc" id="aviso-tarifa" style="margin-bottom:8px"></p>
         <div class="seg" id="seg-momento"><button class="on" data-k="momento" data-v="early" onclick="pick(this)">Early Bird (hasta 9 oct)</button><button data-k="momento" data-v="late" onclick="pick(this)">Tardía (desde 10 oct)</button></div>
         <div class="seg" id="seg-tipo"><button class="on" data-k="tipo" data-v="estudiante" onclick="pick(this)">Estudiante</button><button data-k="tipo" data-v="profesional" onclick="pick(this)">Profesional</button></div>
         <div class="seg" id="seg-socio"><button class="on" data-k="socio" data-v="socio" onclick="pick(this)">Socio SOCHER</button><button data-k="socio" data-v="nosocio" onclick="pick(this)">No socio</button></div>
@@ -224,7 +225,21 @@
           <div style="font-family:var(--display);font-size:2.6rem" id="tarifa">—</div>
           <div style="color:var(--niebla);font-size:.85rem" id="tarifa-detalle"></div>
         </div>
-        <button class="btn" style="width:100%" onclick="goPay()">Ir a la pasarela de pago</button>
+        <div class="row" style="margin-top:4px">
+          <button class="btn" style="flex:1" onclick="pagar('simple')">Pago simple</button>
+          <button class="btn" style="flex:1" onclick="pagar('factura')">Pago con factura</button>
+        </div>
+        <p class="desc" style="margin-top:10px">El pago se abre en una pestaña aparte. Una vez realizado, vuelva aquí y suba el comprobante.</p>
+      </div>
+
+      <div class="panel">
+        <h2>Comprobante de pago</h2>
+        <p class="desc">Suba el comprobante de la transferencia o del pago en línea. Quedará asociado a su inscripción y a los trabajos que haya enviado.</p>
+        <div id="comprobante-estado"></div>
+        <div class="filebox" id="cfilebox" onclick="document.getElementById('c-file').click()">Haga clic para subir su comprobante (PDF, JPG o PNG)</div>
+        <input type="file" id="c-file" class="hidden" accept=".pdf,.jpg,.jpeg,.png" onchange="comprobanteChosen()">
+        <button class="btn" id="btn-comprobante" style="width:100%;margin-top:14px" onclick="subirComprobante()">Subir comprobante</button>
+        <div id="comprobante-cobertura" style="margin-top:16px"></div>
       </div>
       <div class="panel"><h2>Matriz de tarifas (CLP)</h2><p class="desc">Referencia completa de las tarifas.</p>
         <table><thead><tr><th>Categoría</th><th>Early Bird<br><span style="font-weight:400;color:var(--niebla);font-size:.7rem">hasta 9 oct 2026</span></th><th>Tardía<br><span style="font-weight:400;color:var(--niebla);font-size:.7rem">desde 10 oct 2026</span></th></tr></thead><tbody id="matriz-precios"></tbody></table></div>
@@ -247,13 +262,45 @@
       <div class="tabla-scroll"><table><thead><tr><th>Número</th><th>Título</th><th>Autor</th><th>Área</th><th>Formato</th><th>Archivo</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="admin-envios"></tbody></table></div></div></div>
     <div id="apane-insc" class="hidden"><div class="panel"><h2>Usuarios inscritos</h2>
       <p class="desc">Inscritos, con indicación de si han enviado trabajos y su detalle temático.</p>
-      <div class="tabla-scroll"><table><thead><tr><th>Nombre</th><th>Afiliación</th><th>Tarifa</th><th>¿Envió?</th><th>Palabras clave</th><th>Área temática</th></tr></thead><tbody id="admin-insc"></tbody></table></div></div></div>
+      <div class="tabla-scroll"><table><thead><tr><th>Nombre</th><th>Afiliación</th><th>Tarifa</th><th>Medio</th><th>Comprobante</th><th>¿Envió?</th><th>Palabras clave</th><th>Área temática</th></tr></thead><tbody id="admin-insc"></tbody></table></div></div></div>
     <div id="apane-roles" class="hidden">
       <div class="panel"><h2>Gestión de usuarios y roles</h2>
         <p class="desc">Otorgue o remueva permisos de administrador y elimine usuarios. Exclusivo del Superadministrador.</p>
         <div class="tabla-scroll"><table><thead><tr><th>Usuario</th><th>Email</th><th>Rol</th><th>Acciones</th></tr></thead><tbody id="admin-roles"></tbody></table></div></div>
       <div class="panel"><h2>Eliminar trabajos del sistema</h2><p class="desc">La eliminación es permanente e irreversible.</p>
         <div class="tabla-scroll"><table><thead><tr><th>Título</th><th>Autor</th><th>Estado</th><th>Acción</th></tr></thead><tbody id="super-works"></tbody></table></div></div>
+    </div>
+  </main>
+</section>
+
+<section id="view-factura" class="hidden">
+  <main class="wrap-narrow">
+    <div class="panel">
+      <h2>Pago con factura</h2>
+      <p class="desc">Realice la transferencia a la cuenta indicada y luego suba el comprobante en la plataforma.</p>
+
+      <div style="margin:20px 0;padding:18px;border:1px solid var(--turquesa);border-radius:8px;text-align:center">
+        <div style="color:var(--niebla);font-size:.78rem;letter-spacing:1px;text-transform:uppercase">Monto a transferir</div>
+        <div style="font-family:var(--display);font-size:2.2rem" id="f-monto">—</div>
+        <div style="color:var(--niebla);font-size:.85rem" id="f-detalle"></div>
+      </div>
+
+      <div style="margin:20px 0;padding:18px;border:1px solid var(--linea);border-radius:8px">
+        <div style="color:var(--niebla);font-size:.78rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px">Número de referencia</div>
+        <div style="font-family:var(--display);font-size:1.3rem;color:var(--turquesa-claro)" id="f-referencia">—</div>
+        <p class="desc" style="margin-top:8px">Incluya este número en el mensaje o glosa de la transferencia para que podamos identificar su pago.</p>
+      </div>
+
+      <h3 style="font-size:1.05rem;margin:22px 0 10px">Datos de la cuenta</h3>
+      <p class="desc" id="f-intro" style="margin-bottom:12px"></p>
+      <div class="tabla-scroll"><table><tbody id="f-datos"></tbody></table></div>
+
+      <div id="f-notas" class="desc" style="margin-top:18px"></div>
+
+      <div class="row" style="margin-top:24px">
+        <button class="btn ghost" style="flex:1" onclick="cerrarFactura()">Volver a la inscripción</button>
+        <button class="btn" style="flex:1" onclick="cerrarFactura(true)">Ya transferí, subir comprobante</button>
+      </div>
     </div>
   </main>
 </section>
@@ -277,8 +324,33 @@ const TARIFAS = {
   early:{ estudiante:{socio:110000,nosocio:140000}, profesional:{socio:170000, nosocio:200000} },
   late: { estudiante:{socio:140000,nosocio:170000}, profesional:{socio:200000, nosocio:230000} }
 };
-/* CONFIG_LOG: URL real de la pasarela de pago (Webpay, Flow, etc.) */
-const URL_PASARELA = 'https://pasarela-de-pago.example.com/socher2026';
+/* ============================================================
+   CONFIG_LOG: PAGOS — completar cuando estén los datos
+   ------------------------------------------------------------
+   1) URL_PAGO_SIMPLE: pegar aquí la URL real de la pasarela
+      (Webpay, Flow, etc.). Mientras siga con el valor '' el
+      botón de pago simple avisa que la modalidad no está
+      habilitada y no redirige a ninguna parte.
+   2) DATOS_TRANSFERENCIA: datos de la cuenta para el pago con
+      factura. Se muestran tal cual en la pantalla interna de
+      instrucciones. Reemplazar cada texto entre corchetes.
+   ============================================================ */
+const URL_PAGO_SIMPLE = 'https://sup.ucn.cl/FormSup_Socher/';
+
+/* CONFIG_LOG: Último día con tarifa Early Bird (inclusive), hora de Chile.
+   Desde el día siguiente el sistema aplica la tarifa Tardía de forma automática. */
+const FECHA_CORTE_EARLY = '2026-10-09';
+
+const DATOS_TRANSFERENCIA = {
+  intro:      'Para poder solicitar su documento tributario, es necesario que realice una transferencia a la siguiente cuenta:',
+  titular:    'Universidad Católica del Norte',
+  rut:        '81.518.400-9',
+  banco:      'Banco de Chile',
+  tipoCuenta: 'Cuenta Corriente',
+  numero:     '122-00675-05',
+  cierre:     'No olvide adjuntar el comprobante de la misma. El documento será gestionado y remitido por correo electrónico.',
+  glosa:      'Indique en el mensaje o glosa de la transferencia el número de referencia que aparece más arriba, para poder identificar su pago.'
+};
 
 /* ============================================================ */
 let sb=null, session=null, profile=null;
@@ -410,7 +482,7 @@ async function afterAuth(){
   }else{
     vistaActual='user';
     $('view-admin').classList.add('hidden'); $('view-user').classList.remove('hidden');
-    prefillInscripcion(); initAutores(); userTab('envio'); await renderMisEnvios();
+    prefillInscripcion(); initAutores(); userTab('envio'); await renderMisEnvios(); renderComprobante();
   }
 }
 function renderUserbox(){
@@ -430,6 +502,7 @@ function toggleVista(){
     vistaActual='user';
     $('view-admin').classList.add('hidden'); $('view-user').classList.remove('hidden');
     if(!participacionInit){ prefillInscripcion(); initAutores(); userTab('envio'); participacionInit=true; }
+    renderComprobante();
     renderMisEnvios();
   }else{
     vistaActual='admin';
@@ -548,19 +621,159 @@ async function renderMisEnvios(){
 }
 
 /* ===== INSCRIPCIÓN ===== */
-function prefillInscripcion(){$('i-nombre').value=`${profile.nombres} ${profile.ap} ${profile.am||''}`.trim();$('i-afil').value=profile.afil;$('i-email').value=profile.email;updateTarifa();}
-function pick(btn){const k=btn.dataset.k;document.querySelectorAll(`#seg-${k} button`).forEach(b=>b.classList.remove('on'));btn.classList.add('on');pricePick[k]=btn.dataset.v;updateTarifa();}
+// Fecha actual en Chile (no la del dispositivo), en formato AAAA-MM-DD.
+function hoyChile(){
+  try{ return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santiago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()); }
+  catch(e){ return new Date().toISOString().slice(0,10); }
+}
+// La tarifa temprana rige hasta el día de corte inclusive.
+function earlyVigente(){ return hoyChile() <= FECHA_CORTE_EARLY; }
+
+// Aplica la tarifa que corresponde por fecha y bloquea la opción no disponible.
+function aplicarVigenciaTarifa(){
+  const vig=earlyVigente();
+  const segE=document.querySelector('#seg-momento button[data-v="early"]');
+  const segL=document.querySelector('#seg-momento button[data-v="late"]');
+  if(!segE||!segL) return;
+  if(!vig){
+    // Pasado el corte: solo tarifa Tardía.
+    pricePick.momento='late';
+    segE.disabled=true; segE.classList.remove('on'); segE.title='Plazo de tarifa temprana finalizado';
+    segL.classList.add('on');
+  }else{
+    // Antes del corte: solo tarifa Early Bird.
+    pricePick.momento='early';
+    segL.disabled=true; segL.classList.remove('on'); segL.title='Se aplicará automáticamente desde el 10 de octubre de 2026';
+    segE.classList.add('on');
+  }
+  const aviso=$('aviso-tarifa');
+  if(aviso) aviso.textContent = vig
+    ? `Tarifa Early Bird vigente hasta el ${FECHA_CORTE_EARLY.split('-').reverse().join('-')}. Después se aplica automáticamente la tarifa Tardía.`
+    : 'El plazo de tarifa temprana finalizó. Se aplica la tarifa Tardía.';
+  updateTarifa();
+}
+
+function prefillInscripcion(){$('i-nombre').value=`${profile.nombres} ${profile.ap} ${profile.am||''}`.trim();$('i-afil').value=profile.afil;$('i-email').value=profile.email;aplicarVigenciaTarifa();}
+function pick(btn){if(btn.disabled)return;const k=btn.dataset.k;document.querySelectorAll(`#seg-${k} button`).forEach(b=>b.classList.remove('on'));btn.classList.add('on');pricePick[k]=btn.dataset.v;updateTarifa();}
 function updateTarifa(){const t=TARIFAS[pricePick.momento][pricePick.tipo][pricePick.socio];$('tarifa').textContent=fmt(t);
   $('tarifa-detalle').textContent=`${pricePick.momento==='early'?'Early Bird':'Tardía'} · ${pricePick.tipo==='estudiante'?'Estudiante':'Profesional'} · ${pricePick.socio==='socio'?'Socio SOCHER':'No socio'}`;}
 function renderMatriz(){const rows=[['Estudiante · Socio SOCHER','estudiante','socio'],['Estudiante · No socio','estudiante','nosocio'],['Profesional · Socio SOCHER','profesional','socio'],['Profesional · No socio','profesional','nosocio']];
   $('matriz-precios').innerHTML=rows.map(([l,t,s])=>`<tr><td>${l}</td><td>${fmt(TARIFAS.early[t][s])}</td><td>${fmt(TARIFAS.late[t][s])}</td></tr>`).join('');}
-async function goPay(){
+/* ===== PAGOS ===== */
+// Guarda la inscripción con el medio elegido y devuelve la tarifa aplicada.
+async function registrarInscripcion(medio){
+  // La vigencia manda sobre lo que muestre la interfaz: el momento se
+  // recalcula por fecha antes de guardar, de modo que el monto sea el correcto.
+  pricePick.momento = earlyVigente() ? 'early' : 'late';
   const t=TARIFAS[pricePick.momento][pricePick.tipo][pricePick.socio];
-  const {error}=await sb.from('inscripciones').upsert({user_id:session.user.id,momento:pricePick.momento,tipo:pricePick.tipo,socio:pricePick.socio,tarifa:t},{onConflict:'user_id'});
-  if(error) return toast('No se pudo registrar la inscripción: '+error.message,'err');
-  /* CONFIG_LOG: Redirección a la pasarela externa. */
-  window.open(URL_PASARELA+`?monto=${t}&email=${encodeURIComponent(profile.email)}`,'_blank');
-  toast('Inscripción registrada. Redirigiendo a la pasarela de pago.','ok');
+  const {error}=await sb.from('inscripciones').upsert(
+    {user_id:session.user.id,momento:pricePick.momento,tipo:pricePick.tipo,socio:pricePick.socio,tarifa:t,medio_pago:medio},
+    {onConflict:'user_id'});
+  if(error){toast('No se pudo registrar la inscripción: '+error.message,'err');return null;}
+  return t;
+}
+
+// Número de referencia estable por usuario, para conciliar la transferencia.
+function refPago(){ return 'SOCHER-'+session.user.id.replace(/-/g,'').slice(0,8).toUpperCase(); }
+
+async function pagar(medio){
+  if(medio==='factura'){ await abrirFactura(); return; }
+  // Pago simple: la pestaña se abre ANTES de cualquier espera, o el
+  // navegador la bloquea por no considerarla una acción del usuario.
+  if(!URL_PAGO_SIMPLE){
+    toast('La modalidad de pago simple aún no está habilitada. Utilice el pago con factura.','err');
+    return;
+  }
+  const win=window.open('about:blank','_blank');
+  const t=await registrarInscripcion('simple');
+  if(t===null){ if(win) win.close(); return; }
+  const url=URL_PAGO_SIMPLE+(URL_PAGO_SIMPLE.includes('?')?'&':'?')
+    +`monto=${t}&email=${encodeURIComponent(profile.email)}&ref=${encodeURIComponent(refPago())}`;
+  if(win){ win.location.href=url; } else { window.open(url,'_blank','noopener'); }
+  toast('Inscripción registrada. Complete el pago en la pestaña abierta.','ok');
+  renderComprobante();
+}
+
+async function abrirFactura(){
+  const t=await registrarInscripcion('factura');
+  if(t===null) return;
+  $('f-monto').textContent=fmt(t);
+  $('f-detalle').textContent=`${pricePick.tipo==='estudiante'?'Estudiante':'Profesional'} · ${pricePick.socio==='socio'?'Socio SOCHER':'No socio'}`;
+  $('f-referencia').textContent=refPago();
+  const d=DATOS_TRANSFERENCIA;
+  const filas=[['Titular',d.titular],['R.U.T.',d.rut],['Banco',d.banco],
+               ['Tipo de cuenta',d.tipoCuenta],['N.º de cuenta',d.numero]];
+  $('f-datos').innerHTML=filas.map(([k,v])=>`<tr><td style="color:var(--niebla);width:40%">${k}</td><td>${v}</td></tr>`).join('');
+  $('f-intro').textContent=d.intro;
+  $('f-notas').innerHTML=`${d.cierre}<br><br>${d.glosa}`;
+  $('view-user').classList.add('hidden'); $('view-factura').classList.remove('hidden');
+  window.scrollTo(0,0);
+}
+
+function cerrarFactura(){
+  $('view-factura').classList.add('hidden'); $('view-user').classList.remove('hidden');
+  userTab('insc'); window.scrollTo(0,0);
+}
+
+/* ----- Comprobante de pago ----- */
+let comprobanteFile=null;
+function comprobanteChosen(){
+  const f=$('c-file').files[0]; if(!f) return;
+  if(f.size>10*1024*1024){ toast('El archivo supera los 10 MB.','err'); $('c-file').value=''; return; }
+  comprobanteFile=f;
+  const b=$('cfilebox'); b.textContent='Archivo seleccionado: '+f.name; b.classList.add('ok');
+}
+
+async function subirComprobante(){
+  if(!comprobanteFile) return toast('Seleccione primero el archivo del comprobante.','err');
+  const btn=$('btn-comprobante'); btn.disabled=true; btn.textContent='Subiendo...';
+  try{
+    const {data:insc}=await sb.from('inscripciones').select('tarifa,medio_pago').eq('user_id',session.user.id).maybeSingle();
+    if(!insc){ toast('Primero seleccione su categoría y un medio de pago.','err'); return; }
+    const ext=comprobanteFile.name.split('.').pop().toLowerCase();
+    const path=`${session.user.id}/comprobante-${Date.now()}.${ext}`;
+    const up=await sb.storage.from('comprobantes').upload(path, comprobanteFile);
+    if(up.error) throw up.error;
+    const {error}=await sb.from('comprobantes').insert({
+      user_id:session.user.id, medio_pago:insc.medio_pago||'factura', monto:insc.tarifa,
+      archivo_path:path, archivo_nombre:comprobanteFile.name});
+    if(error) throw error;
+    comprobanteFile=null; $('c-file').value='';
+    const b=$('cfilebox'); b.textContent='Haga clic para subir su comprobante (PDF, JPG o PNG)'; b.classList.remove('ok');
+    toast('Comprobante recibido. Será verificado por el Comité Organizador.','ok');
+    renderComprobante();
+  }catch(e){ toast('No se pudo subir el comprobante: '+(e.message||e),'err'); }
+  finally{ btn.disabled=false; btn.textContent='Subir comprobante'; }
+}
+
+async function renderComprobante(){
+  const cont=$('comprobante-estado'); if(!cont) return;
+  const {data}=await sb.from('comprobantes').select('*').eq('user_id',session.user.id).order('created_at',{ascending:false});
+  if(!data||!data.length){
+    cont.innerHTML='<p class="desc" style="margin-bottom:14px">Aún no ha subido ningún comprobante.</p>';
+  }else{
+    cont.innerHTML='<div class="tabla-scroll"><table><thead><tr><th>Archivo</th><th>Monto</th><th>Estado</th><th>Fecha</th></tr></thead><tbody>'
+      +data.map(c=>{
+        const tag=c.estado==='verificado'?'<span class="tag acc">Verificado</span>'
+                 :c.estado==='rechazado'?`<span class="tag rej">Rechazado</span>${c.motivo_rechazo?'<br><span style="color:var(--niebla);font-size:.74rem">'+c.motivo_rechazo+'</span>':''}`
+                 :'<span class="tag pend">Pendiente de verificación</span>';
+        return `<tr><td><a href="#" onclick="verComprobante('${c.archivo_path}');return false">${c.archivo_nombre||'comprobante'}</a></td>
+        <td>${c.monto?fmt(c.monto):'—'}</td><td>${tag}</td>
+        <td style="color:var(--niebla);font-size:.8rem">${new Date(c.created_at).toLocaleDateString('es-CL')}</td></tr>`;}).join('')
+      +'</tbody></table></div>';
+  }
+  // Trabajos cubiertos por el pago, para que la asociación sea visible.
+  const {data:works}=await sb.from('works').select('titulo').eq('owner_id',session.user.id);
+  const cov=$('comprobante-cobertura');
+  if(cov) cov.innerHTML = (works&&works.length)
+    ? '<p class="desc">Trabajos asociados a esta inscripción: '+works.map(w=>'“'+w.titulo+'”').join(', ')+'</p>'
+    : '<p class="desc">Aún no ha enviado trabajos. Los que envíe quedarán asociados a esta inscripción.</p>';
+}
+
+async function verComprobante(path){
+  const {data,error}=await sb.storage.from('comprobantes').createSignedUrl(path,120);
+  if(error) return toast('No se pudo abrir el archivo.','err');
+  window.open(data.signedUrl,'_blank','noopener');
 }
 
 /* ===== ADMIN ===== */
@@ -596,15 +809,53 @@ async function setEstado(id,estado){
   toast(estado==='aceptado'?'Trabajo aceptado. Correo de aceptación encolado.':'Trabajo rechazado. Correo de notificación encolado.', estado==='aceptado'?'ok':'err');
 }
 async function renderAdminInsc(){
-  const [{data:ins},{data:works},pmap]=await Promise.all([sb.from('inscripciones').select('*'),sb.from('works').select('owner_id,keywords,area'),fetchProfilesMap()]);
+  const [{data:ins},{data:works},{data:comps},pmap]=await Promise.all([
+    sb.from('inscripciones').select('*'),
+    sb.from('works').select('owner_id,keywords,area'),
+    sb.from('comprobantes').select('*').order('created_at',{ascending:false}),
+    fetchProfilesMap()]);
   const tb=$('admin-insc');
-  if(!ins||!ins.length){tb.innerHTML='<tr><td colspan="6" class="empty">No hay inscripciones registradas.</td></tr>';return;}
+  if(!ins||!ins.length){tb.innerHTML='<tr><td colspan="8" class="empty">No hay inscripciones registradas.</td></tr>';return;}
   tb.innerHTML=ins.map(i=>{const u=pmap[i.user_id];const mine=(works||[]).filter(w=>w.owner_id===i.user_id);
     const envio=mine.length?`<span class="tag si">Sí (${mine.length})</span>`:'<span class="tag no">No</span>';
     const kws=mine.map(w=>w.keywords).join(' · ')||'—';const areas=[...new Set(mine.map(w=>w.area))].join(', ')||'—';
+    const medio=i.medio_pago==='simple'?'Pago simple':i.medio_pago==='factura'?'Con factura':'—';
+    // Comprobante más reciente del participante.
+    const c=(comps||[]).find(x=>x.user_id===i.user_id);
+    let comp='<span class="tag no">Sin comprobante</span>';
+    if(c){
+      const tag=c.estado==='verificado'?'<span class="tag acc">Verificado</span>'
+               :c.estado==='rechazado'?'<span class="tag rej">Rechazado</span>'
+               :'<span class="tag pend">Pendiente</span>';
+      comp=`<a href="#" onclick="verComprobante('${c.archivo_path}');return false">${c.archivo_nombre||'Ver archivo'}</a><br>${tag}`;
+      if(c.estado!=='verificado') comp+=`<br><button class="btn ok sm" style="margin-top:6px" onclick="verificarComprobante('${c.id}')">Verificar</button>`;
+      if(c.estado!=='rechazado') comp+=`<br><button class="btn no sm" style="margin-top:4px" onclick="rechazarComprobante('${c.id}')">Rechazar</button>`;
+    }
     return `<tr><td>${u?u.nombres+' '+u.ap:i.user_id}</td><td>${u?u.afil:'—'}</td>
     <td>${fmt(i.tarifa)}<br><span style="color:var(--niebla);font-size:.74rem">${i.tipo==='estudiante'?'Estudiante':'Profesional'} · ${i.socio==='socio'?'Socio':'No socio'}</span></td>
+    <td>${medio}</td><td class="acciones">${comp}</td>
     <td>${envio}</td><td>${kws}</td><td>${areas}</td></tr>`;}).join('');
+}
+
+// El gestor confirma que el pago está correcto; marca la inscripción como pagada.
+async function verificarComprobante(id){
+  const {data:c}=await sb.from('comprobantes').select('user_id').eq('id',id).maybeSingle();
+  const {error}=await sb.from('comprobantes').update(
+    {estado:'verificado',motivo_rechazo:null,verificado_por:session.user.id,verificado_at:new Date().toISOString()}).eq('id',id);
+  if(error) return toast('No se pudo verificar: '+error.message,'err');
+  if(c) await sb.from('inscripciones').update({pagado:true}).eq('user_id',c.user_id);
+  toast('Comprobante verificado.','ok'); renderAdminInsc();
+}
+
+async function rechazarComprobante(id){
+  const motivo=prompt('Motivo del rechazo (lo verá el participante):');
+  if(motivo===null) return;
+  const {data:c}=await sb.from('comprobantes').select('user_id').eq('id',id).maybeSingle();
+  const {error}=await sb.from('comprobantes').update(
+    {estado:'rechazado',motivo_rechazo:motivo||'No especificado',verificado_por:session.user.id,verificado_at:new Date().toISOString()}).eq('id',id);
+  if(error) return toast('No se pudo rechazar: '+error.message,'err');
+  if(c) await sb.from('inscripciones').update({pagado:false}).eq('user_id',c.user_id);
+  toast('Comprobante rechazado. El participante puede subir otro.','ok'); renderAdminInsc();
 }
 async function renderRoles(){
   const {data}=await sb.from('profiles').select('*').order('created_at');
