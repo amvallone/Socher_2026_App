@@ -752,7 +752,19 @@ async function renderComprobante(){
   if(!data||!data.length){
     cont.innerHTML='<p class="desc" style="margin-bottom:14px">Aún no ha subido ningún comprobante.</p>';
   }else{
-    cont.innerHTML='<div class="tabla-scroll"><table><thead><tr><th>Archivo</th><th>Monto</th><th>Estado</th><th>Fecha</th></tr></thead><tbody>'
+    // Si el último comprobante fue rechazado, se destaca para que no pase inadvertido.
+    const ultimo=data[0];
+    let banner='';
+    if(ultimo.estado==='rechazado'){
+      banner=`<div style="margin-bottom:16px;padding:14px;border:1px solid var(--rojo);border-left:4px solid var(--rojo);border-radius:8px;background:rgba(179,74,74,.12)">
+        <strong>Su comprobante fue rechazado.</strong><br>
+        <span style="color:var(--niebla);font-size:.85rem">Motivo: ${ultimo.motivo_rechazo||'No especificado'}</span><br>
+        <span style="font-size:.85rem">Regularice el pago y suba un nuevo comprobante.</span></div>`;
+    }else if(ultimo.estado==='verificado'){
+      banner=`<div style="margin-bottom:16px;padding:14px;border:1px solid var(--verde);border-left:4px solid var(--verde);border-radius:8px;background:rgba(63,138,110,.12)">
+        <strong>Pago confirmado.</strong> Su inscripción se encuentra regularizada.</div>`;
+    }
+    cont.innerHTML=banner+'<div class="tabla-scroll"><table><thead><tr><th>Archivo</th><th>Monto</th><th>Estado</th><th>Fecha</th></tr></thead><tbody>'
       +data.map(c=>{
         const tag=c.estado==='verificado'?'<span class="tag acc">Verificado</span>'
                  :c.estado==='rechazado'?`<span class="tag rej">Rechazado</span>${c.motivo_rechazo?'<br><span style="color:var(--niebla);font-size:.74rem">'+c.motivo_rechazo+'</span>':''}`
@@ -839,23 +851,71 @@ async function renderAdminInsc(){
 
 // El gestor confirma que el pago está correcto; marca la inscripción como pagada.
 async function verificarComprobante(id){
-  const {data:c}=await sb.from('comprobantes').select('user_id').eq('id',id).maybeSingle();
+  const {data:c}=await sb.from('comprobantes').select('user_id,monto').eq('id',id).maybeSingle();
   const {error}=await sb.from('comprobantes').update(
     {estado:'verificado',motivo_rechazo:null,verificado_por:session.user.id,verificado_at:new Date().toISOString()}).eq('id',id);
   if(error) return toast('No se pudo verificar: '+error.message,'err');
-  if(c) await sb.from('inscripciones').update({pagado:true}).eq('user_id',c.user_id);
-  toast('Comprobante verificado.','ok'); renderAdminInsc();
+  if(c){
+    await sb.from('inscripciones').update({pagado:true}).eq('user_id',c.user_id);
+    avisarComprobanteVerificado(c);
+  }
+  toast('Comprobante verificado. Se notificó al participante.','ok'); renderAdminInsc();
 }
 
 async function rechazarComprobante(id){
-  const motivo=prompt('Motivo del rechazo (lo verá el participante):');
+  const {data:c}=await sb.from('comprobantes').select('user_id,monto').eq('id',id).maybeSingle();
+  if(!c) return toast('No se encontró el comprobante.','err');
+  // Monto que correspondía según la inscripción registrada.
+  const {data:insc}=await sb.from('inscripciones').select('tarifa').eq('user_id',c.user_id).maybeSingle();
+  const motivo=prompt('Motivo del rechazo (lo verá el participante en el correo):');
   if(motivo===null) return;
-  const {data:c}=await sb.from('comprobantes').select('user_id').eq('id',id).maybeSingle();
+  const correcto=prompt('Monto correcto a pagar (en pesos, solo números):', insc?insc.tarifa:'');
+  if(correcto===null) return;
+  const montoCorrecto=parseInt(String(correcto).replace(/\D/g,''),10);
   const {error}=await sb.from('comprobantes').update(
     {estado:'rechazado',motivo_rechazo:motivo||'No especificado',verificado_por:session.user.id,verificado_at:new Date().toISOString()}).eq('id',id);
   if(error) return toast('No se pudo rechazar: '+error.message,'err');
-  if(c) await sb.from('inscripciones').update({pagado:false}).eq('user_id',c.user_id);
-  toast('Comprobante rechazado. El participante puede subir otro.','ok'); renderAdminInsc();
+  await sb.from('inscripciones').update({pagado:false}).eq('user_id',c.user_id);
+  avisarComprobanteRechazado(c, motivo||'No especificado', isNaN(montoCorrecto)?null:montoCorrecto);
+  toast('Comprobante rechazado. Se notificó al participante.','ok'); renderAdminInsc();
+}
+
+/* CONFIG_LOG: Texto del correo de comprobante RECHAZADO. */
+async function avisarComprobanteRechazado(c, motivo, montoCorrecto){
+  const {data:u}=await sb.from('profiles').select('email,nombres,ap').eq('id',c.user_id).maybeSingle();
+  if(!u) return;
+  const asunto='Comprobante de pago rechazado — SOCHER 2026';
+  const cuerpo=`Estimado/a ${u.nombres} ${u.ap}:
+
+Le informamos que el comprobante de pago que envió para su inscripción al XVI Congreso de la Sociedad Chilena de Estudios Regionales (SOCHER 2026) no pudo ser validado.
+
+Motivo: ${motivo}
+${c.monto?`Monto del comprobante recibido: ${fmt(c.monto)}\n`:''}${montoCorrecto?`Monto correcto a pagar: ${fmt(montoCorrecto)}\n`:''}
+Le solicitamos regularizar el pago y subir un nuevo comprobante en la plataforma, en la pestaña Inscripción de su cuenta. El comprobante anterior queda registrado, por lo que no necesita anularlo.
+
+Para consultas y requerimientos respecto al encuentro comunicarse al correo electrónico: socher2026@ucn.cl
+
+Cordialmente,
+Comité Organizador SOCHER 2026`;
+  dispatchEmail(u.email,asunto,cuerpo);
+}
+
+/* CONFIG_LOG: Texto del correo de comprobante VERIFICADO. */
+async function avisarComprobanteVerificado(c){
+  const {data:u}=await sb.from('profiles').select('email,nombres,ap').eq('id',c.user_id).maybeSingle();
+  if(!u) return;
+  const asunto='Pago confirmado — SOCHER 2026';
+  const cuerpo=`Estimado/a ${u.nombres} ${u.ap}:
+
+Confirmamos la recepción y validación de su pago de inscripción al XVI Congreso de la Sociedad Chilena de Estudios Regionales (SOCHER 2026)${c.monto?` por un monto de ${fmt(c.monto)}`:''}.
+
+Su inscripción se encuentra regularizada.
+
+Para consultas y requerimientos respecto al encuentro comunicarse al correo electrónico: socher2026@ucn.cl
+
+Cordialmente,
+Comité Organizador SOCHER 2026`;
+  dispatchEmail(u.email,asunto,cuerpo);
 }
 async function renderRoles(){
   const {data}=await sb.from('profiles').select('*').order('created_at');
