@@ -218,7 +218,7 @@
         <label style="margin-top:8px">Categoría de inscripción</label>
         <p class="desc" id="aviso-tarifa" style="margin-bottom:8px"></p>
         <div class="seg" id="seg-momento"><button class="on" data-k="momento" data-v="early" onclick="pick(this)">Early Bird (hasta 9 oct)</button><button data-k="momento" data-v="late" onclick="pick(this)">Tardía (desde 10 oct)</button></div>
-        <div class="seg" id="seg-tipo"><button class="on" data-k="tipo" data-v="estudiante" onclick="pick(this)">Estudiante</button><button data-k="tipo" data-v="profesional" onclick="pick(this)">Profesional</button></div>
+        <div class="seg" id="seg-tipo"><button class="on" data-k="tipo" data-v="estudiante" onclick="pick(this)">Estudiante</button><button data-k="tipo" data-v="profesional" onclick="pick(this)">Profesional</button><button data-k="tipo" data-v="ticket" onclick="pick(this)">Ticket de participación</button></div>
         <div class="seg" id="seg-socio"><button class="on" data-k="socio" data-v="socio" onclick="pick(this)">Socio SOCHER</button><button data-k="socio" data-v="nosocio" onclick="pick(this)">No socio</button></div>
         <div style="margin:22px 0;padding:20px;border:1px solid var(--cobre);border-radius:8px;text-align:center">
           <div style="color:var(--niebla);font-size:.8rem;letter-spacing:1px;text-transform:uppercase">Tarifa aplicable</div>
@@ -320,10 +320,18 @@ const SUPABASE_URL      = 'https://lmuyvqfxqeqlrcuvokvm.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_3oZ0afFOwqc1TzZC2FB5MQ_Xt8aQv7a';
 
 /* ---- MATRIZ DE TARIFAS (CLP). CONFIG_LOG: editar valores. ---- */
+/* CONFIG_LOG: Precio del Ticket de participación (único, no varía por fecha ni membresía). */
+const PRECIO_TICKET = 65000;
 const TARIFAS = {
-  early:{ estudiante:{socio:110000,nosocio:140000}, profesional:{socio:170000, nosocio:200000} },
-  late: { estudiante:{socio:140000,nosocio:170000}, profesional:{socio:200000, nosocio:230000} }
+  early:{ estudiante:{socio:110000,nosocio:140000}, profesional:{socio:170000, nosocio:200000}, ticket:{socio:PRECIO_TICKET,nosocio:PRECIO_TICKET} },
+  late: { estudiante:{socio:140000,nosocio:170000}, profesional:{socio:200000, nosocio:230000}, ticket:{socio:PRECIO_TICKET,nosocio:PRECIO_TICKET} }
 };
+// Etiquetas legibles de la categoría.
+function etiquetaTipo(t){ return t==='estudiante'?'Estudiante':t==='profesional'?'Profesional':'Ticket de participación'; }
+function etiquetaCategoria(tipo,socio,corto){
+  if(tipo==='ticket') return 'Ticket de participación';
+  return etiquetaTipo(tipo)+' · '+(socio==='socio'?(corto?'Socio':'Socio SOCHER'):'No socio');
+}
 /* ============================================================
    CONFIG_LOG: PAGOS — completar cuando estén los datos
    ------------------------------------------------------------
@@ -656,8 +664,15 @@ function aplicarVigenciaTarifa(){
 function prefillInscripcion(){$('i-nombre').value=`${profile.nombres} ${profile.ap} ${profile.am||''}`.trim();$('i-afil').value=profile.afil;$('i-email').value=profile.email;aplicarVigenciaTarifa();}
 function pick(btn){if(btn.disabled)return;const k=btn.dataset.k;document.querySelectorAll(`#seg-${k} button`).forEach(b=>b.classList.remove('on'));btn.classList.add('on');pricePick[k]=btn.dataset.v;updateTarifa();}
 function updateTarifa(){const t=TARIFAS[pricePick.momento][pricePick.tipo][pricePick.socio];$('tarifa').textContent=fmt(t);
-  $('tarifa-detalle').textContent=`${pricePick.momento==='early'?'Early Bird':'Tardía'} · ${pricePick.tipo==='estudiante'?'Estudiante':'Profesional'} · ${pricePick.socio==='socio'?'Socio SOCHER':'No socio'}`;}
-function renderMatriz(){const rows=[['Estudiante · Socio SOCHER','estudiante','socio'],['Estudiante · No socio','estudiante','nosocio'],['Profesional · Socio SOCHER','profesional','socio'],['Profesional · No socio','profesional','nosocio']];
+  const esTicket=pricePick.tipo==='ticket';
+  // El ticket tiene precio único: la membresía y el tramo de fecha no aplican.
+  $('seg-socio').classList.toggle('hidden',esTicket);
+  $('seg-momento').classList.toggle('hidden',esTicket);
+  const av=$('aviso-tarifa'); if(av) av.classList.toggle('hidden',esTicket);
+  $('tarifa-detalle').textContent = esTicket
+    ? 'Ticket de participación · precio único'
+    : `${pricePick.momento==='early'?'Early Bird':'Tardía'} · ${etiquetaCategoria(pricePick.tipo,pricePick.socio)}`;}
+function renderMatriz(){const rows=[['Estudiante · Socio SOCHER','estudiante','socio'],['Estudiante · No socio','estudiante','nosocio'],['Profesional · Socio SOCHER','profesional','socio'],['Profesional · No socio','profesional','nosocio'],['Ticket de participación','ticket','nosocio']];
   $('matriz-precios').innerHTML=rows.map(([l,t,s])=>`<tr><td>${l}</td><td>${fmt(TARIFAS.early[t][s])}</td><td>${fmt(TARIFAS.late[t][s])}</td></tr>`).join('');}
 /* ===== PAGOS ===== */
 // Guarda la inscripción con el medio elegido y devuelve la tarifa aplicada.
@@ -698,7 +713,7 @@ async function abrirFactura(){
   const t=await registrarInscripcion('factura');
   if(t===null) return;
   $('f-monto').textContent=fmt(t);
-  $('f-detalle').textContent=`${pricePick.tipo==='estudiante'?'Estudiante':'Profesional'} · ${pricePick.socio==='socio'?'Socio SOCHER':'No socio'}`;
+  $('f-detalle').textContent=etiquetaCategoria(pricePick.tipo,pricePick.socio);
   $('f-referencia').textContent=refPago();
   const d=DATOS_TRANSFERENCIA;
   const filas=[['Titular',d.titular],['R.U.T.',d.rut],['Banco',d.banco],
@@ -844,7 +859,7 @@ async function renderAdminInsc(){
       if(c.estado!=='rechazado') comp+=`<br><button class="btn no sm" style="margin-top:4px" onclick="rechazarComprobante('${c.id}')">Rechazar</button>`;
     }
     return `<tr><td>${u?u.nombres+' '+u.ap:i.user_id}</td><td>${u?u.afil:'—'}</td>
-    <td>${fmt(i.tarifa)}<br><span style="color:var(--niebla);font-size:.74rem">${i.tipo==='estudiante'?'Estudiante':'Profesional'} · ${i.socio==='socio'?'Socio':'No socio'}</span></td>
+    <td>${fmt(i.tarifa)}<br><span style="color:var(--niebla);font-size:.74rem">${etiquetaCategoria(i.tipo,i.socio,true)}</span></td>
     <td>${medio}</td><td class="acciones">${comp}</td>
     <td>${envio}</td><td>${kws}</td><td>${areas}</td></tr>`;}).join('');
 }
