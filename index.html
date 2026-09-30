@@ -259,9 +259,11 @@
     </div>
     <div id="apane-envios"><div class="panel"><h2>Trabajos recibidos</h2>
       <p class="desc">Acepte o rechace cada trabajo. La acción notifica al autor y se refleja al instante para los demás administradores.</p>
+      <button class="btn ghost sm" style="margin-bottom:14px" onclick="exportarEnvios()">Descargar en Excel</button>
       <div class="tabla-scroll"><table><thead><tr><th>Número</th><th>Título</th><th>Autor</th><th>Área</th><th>Formato</th><th>Archivo</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="admin-envios"></tbody></table></div></div></div>
     <div id="apane-insc" class="hidden"><div class="panel"><h2>Usuarios inscritos</h2>
       <p class="desc">Inscritos, con indicación de si han enviado trabajos y su detalle temático.</p>
+      <button class="btn ghost sm" style="margin-bottom:14px" onclick="exportarInscritos()">Descargar en Excel</button>
       <div class="tabla-scroll"><table><thead><tr><th>Nombre</th><th>Afiliación</th><th>Tarifa</th><th>Medio</th><th>Comprobante</th><th>¿Envió?</th><th>Palabras clave</th><th>Área temática</th></tr></thead><tbody id="admin-insc"></tbody></table></div></div></div>
     <div id="apane-roles" class="hidden">
       <div class="panel"><h2>Gestión de usuarios y roles</h2>
@@ -309,6 +311,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 /* ============================================================
    CONFIGURACIÓN SUPABASE
@@ -806,7 +809,7 @@ async function verComprobante(path){
 /* ===== ADMIN ===== */
 function adminTab(w){['envios','insc','roles'].forEach(t=>{$('apane-'+t)?.classList.toggle('hidden',t!==w);$('atab-'+t)?.classList.toggle('active',t===w);});}
 async function renderAdmin(){await Promise.all([renderAdminEnvios(),renderAdminInsc()]);if(profile.role==='superadmin'){await renderRoles();await renderSuperWorks();}}
-async function fetchProfilesMap(){const {data}=await sb.from('profiles').select('id,nombres,ap,afil,email');const m={};(data||[]).forEach(p=>m[p.id]=p);return m;}
+async function fetchProfilesMap(){const {data}=await sb.from('profiles').select('id,nombres,ap,am,afil,email');const m={};(data||[]).forEach(p=>m[p.id]=p);return m;}
 
 async function renderAdminEnvios(){
   const [{data:works},pmap]=await Promise.all([sb.from('works').select('*').order('created_at',{ascending:false}),fetchProfilesMap()]);
@@ -862,6 +865,69 @@ async function renderAdminInsc(){
     <td>${fmt(i.tarifa)}<br><span style="color:var(--niebla);font-size:.74rem">${etiquetaCategoria(i.tipo,i.socio,true)}</span></td>
     <td>${medio}</td><td class="acciones">${comp}</td>
     <td>${envio}</td><td>${kws}</td><td>${areas}</td></tr>`;}).join('');
+}
+
+/* ===== EXPORTACIÓN A EXCEL ===== */
+// Genera y descarga un libro .xlsx a partir de un arreglo de objetos.
+function descargarExcel(filas, nombreHoja, nombreArchivo){
+  if(typeof XLSX==='undefined') return toast('No se pudo cargar el generador de Excel. Revise su conexión.','err');
+  if(!filas.length) return toast('No hay datos para exportar.','err');
+  const hoja=XLSX.utils.json_to_sheet(filas);
+  // Ancho de columna aproximado según el contenido más largo.
+  hoja['!cols']=Object.keys(filas[0]).map(k=>{
+    const largo=Math.max(k.length, ...filas.map(f=>String(f[k]??'').length));
+    return {wch:Math.min(Math.max(largo+2,12),60)};
+  });
+  const libro=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(libro,hoja,nombreHoja);
+  const fecha=new Date().toISOString().slice(0,10);
+  XLSX.writeFile(libro,`${nombreArchivo}-${fecha}.xlsx`);
+}
+
+async function exportarEnvios(){
+  const {data:works,error}=await sb.from('works').select('*').order('created_at',{ascending:true});
+  if(error) return toast('No se pudieron obtener los trabajos: '+error.message,'err');
+  const filas=(works||[]).map(w=>{
+    const aut=Array.isArray(w.autores)?w.autores:[];
+    const nombres=aut.map(a=>a.nombre).filter(Boolean).join('; ');
+    const afils=[...new Set(aut.map(a=>a.afil).filter(Boolean))].join('; ');
+    return {
+      'Referencia': w.numero||'',
+      'Título': w.titulo||'',
+      'Autores': nombres,
+      'Afiliación': afils,
+      'Área': w.area||'',
+      'Formato': w.formato||''
+    };
+  });
+  descargarExcel(filas,'Envíos','socher2026-envios');
+}
+
+async function exportarInscritos(){
+  const [{data:ins,error},{data:works},{data:comps},pmap]=await Promise.all([
+    sb.from('inscripciones').select('*'),
+    sb.from('works').select('owner_id,area'),
+    sb.from('comprobantes').select('user_id,estado,monto,created_at').order('created_at',{ascending:false}),
+    fetchProfilesMap()]);
+  if(error) return toast('No se pudieron obtener las inscripciones: '+error.message,'err');
+  const filas=(ins||[]).map(i=>{
+    const u=pmap[i.user_id]||{};
+    const mine=(works||[]).filter(w=>w.owner_id===i.user_id);
+    const c=(comps||[]).find(x=>x.user_id===i.user_id);
+    return {
+      'Nombre': [u.nombres,u.ap,u.am].filter(Boolean).join(' '),
+      'Correo': u.email||'',
+      'Afiliación': u.afil||'',
+      'Categoría': etiquetaCategoria(i.tipo,i.socio),
+      'Tramo': i.tipo==='ticket'?'Precio único':(i.momento==='early'?'Early Bird':'Tardía'),
+      'Tarifa': i.tarifa||'',
+      'Medio de pago': i.medio_pago==='simple'?'Pago simple':i.medio_pago==='factura'?'Con factura':'',
+      'Estado del pago': c?(c.estado==='verificado'?'Verificado':c.estado==='rechazado'?'Rechazado':'Pendiente'):'Sin comprobante',
+      'Trabajos enviados': mine.length,
+      'Áreas': [...new Set(mine.map(w=>w.area))].join('; ')
+    };
+  });
+  descargarExcel(filas,'Inscritos','socher2026-inscritos');
 }
 
 // El gestor confirma que el pago está correcto; marca la inscripción como pagada.
