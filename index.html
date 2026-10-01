@@ -585,9 +585,10 @@ async function submitWork(){
   const {data:nuevo,error}=await sb.from('works').insert({owner_id:session.user.id,titulo,keywords,area,formato,autores,cita_apa,archivo_path:path,archivo_name:chosenFile.name,estado:'pendiente',bloqueado:true}).select().single();
   if(error){ $('btn-submit').disabled=false; $('btn-submit').textContent='Enviar para evaluación'; return toast('Error al guardar el trabajo: '+error.message,'err'); }
 
-  // Número de envío legible derivado del UUID (único, sin condiciones de carrera).
-  const numero='SOCHER-2026-'+nuevo.id.replace(/-/g,'').slice(0,6).toUpperCase();
-  await sb.from('works').update({numero}).eq('id',nuevo.id);
+  // El número correlativo lo asigna la base de datos al insertar
+  // (disparador trg_asignar_numero_trabajo), de modo que el autor
+  // no necesita permisos de actualización.
+  const numero=nuevo.numero||'—';
 
   // Comprobante por correo al autor de contacto.
   enviarComprobante({...nuevo, numero});
@@ -891,15 +892,21 @@ async function exportarEnvios(){
     const aut=Array.isArray(w.autores)?w.autores:[];
     const nombres=aut.map(a=>a.nombre).filter(Boolean).join('; ');
     const afils=[...new Set(aut.map(a=>a.afil).filter(Boolean))].join('; ');
+    const estado = w.estado==='aceptado'?'Aceptado'
+                 : w.estado==='rechazado'?'Rechazado'
+                 : 'En revisión';
     return {
       'Referencia': w.numero||'',
       'Título': w.titulo||'',
       'Autores': nombres,
       'Afiliación': afils,
       'Área': w.area||'',
-      'Formato': w.formato||''
+      'Formato': w.formato||'',
+      'Estado': estado
     };
   });
+  // Orden por número de envío, para que coincida con el correlativo.
+  filas.sort((a,b)=>String(a.Referencia).localeCompare(String(b.Referencia),'es',{numeric:true}));
   descargarExcel(filas,'Envíos','socher2026-envios');
 }
 
