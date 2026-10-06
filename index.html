@@ -168,6 +168,7 @@
     <div class="tabs">
       <div class="tab active" id="utab-envio" onclick="userTab('envio')">Envío de trabajos</div>
       <div class="tab" id="utab-insc" onclick="userTab('insc')">Inscripción</div>
+      <div class="tab" id="utab-datos" onclick="userTab('datos')">Mis datos</div>
     </div>
     <div id="upane-envio">
       <div class="panel">
@@ -243,6 +244,22 @@
       </div>
       <div class="panel"><h2>Matriz de tarifas (CLP)</h2><p class="desc">Referencia completa de las tarifas.</p>
         <table><thead><tr><th>Categoría</th><th>Early Bird<br><span style="font-weight:400;color:var(--niebla);font-size:.7rem">hasta 9 oct 2026</span></th><th>Tardía<br><span style="font-weight:400;color:var(--niebla);font-size:.7rem">desde 10 oct 2026</span></th></tr></thead><tbody id="matriz-precios"></tbody></table></div>
+    </div>
+
+    <div id="upane-datos" class="hidden">
+      <div class="panel">
+        <h2>Mis datos</h2>
+        <p class="desc">Corrija aquí sus datos personales. Se utilizan en los listados, los certificados y la comunicación del congreso.</p>
+        <div class="row"><div class="field"><label>Nombres <span class="req">*</span></label><input id="d-nombres"></div></div>
+        <div class="row">
+          <div class="field"><label>Apellido paterno <span class="req">*</span></label><input id="d-ap"></div>
+          <div class="field"><label>Apellido materno</label><input id="d-am"></div>
+        </div>
+        <div class="field"><label>Afiliación institucional <span class="req">*</span></label><input id="d-afil"></div>
+        <div class="field"><label>Correo electrónico</label><input id="d-email" readonly>
+          <p class="desc" style="margin-top:6px">El correo no puede modificarse, ya que identifica su cuenta. Si necesita cambiarlo, escriba a socher2026@ucn.cl</p></div>
+        <button class="btn" id="btn-datos" style="width:100%;margin-top:10px" onclick="guardarMisDatos()">Guardar cambios</button>
+      </div>
     </div>
   </main>
 </section>
@@ -524,7 +541,14 @@ function toggleVista(){
 }
 
 /* ===== ENVÍO + STORAGE ===== */
-function userTab(w){$('upane-envio').classList.toggle('hidden',w!=='envio');$('upane-insc').classList.toggle('hidden',w!=='insc');$('utab-envio').classList.toggle('active',w==='envio');$('utab-insc').classList.toggle('active',w==='insc');}
+function userTab(w){
+  ['envio','insc','datos'].forEach(k=>{
+    const p=$('upane-'+k), t=$('utab-'+k);
+    if(p) p.classList.toggle('hidden',w!==k);
+    if(t) t.classList.toggle('active',w===k);
+  });
+  if(w==='datos') cargarMisDatos();
+}
 function initAutores(){$('autores-list').innerHTML='';addAutor(profile.nombres||'', `${profile.ap||''} ${profile.am||''}`.trim(), profile.afil||'');updateApaPreview();}
 function addAutor(nombre='',apellido='',afil=''){const d=document.createElement('div');d.className='row';d.style.marginBottom='8px';
   const esc=s=>String(s).replace(/"/g,'&quot;');
@@ -869,6 +893,32 @@ async function renderAdminInsc(){
     <td>${fmt(i.tarifa)}<br><span style="color:var(--niebla);font-size:.74rem">${etiquetaCategoria(i.tipo,i.socio,true)}</span></td>
     <td>${medio}</td><td class="acciones">${comp}</td>
     <td>${envio}</td><td>${kws}</td><td>${areas}</td></tr>`;}).join('');
+}
+
+/* ===== MIS DATOS ===== */
+function cargarMisDatos(){
+  if(!profile) return;
+  $('d-nombres').value=profile.nombres||'';
+  $('d-ap').value=profile.ap||'';
+  $('d-am').value=profile.am||'';
+  $('d-afil').value=profile.afil||'';
+  $('d-email').value=profile.email||'';
+}
+
+async function guardarMisDatos(){
+  const nombres=$('d-nombres').value.trim(), ap=$('d-ap').value.trim();
+  const am=$('d-am').value.trim(), afil=$('d-afil').value.trim();
+  if(!nombres||!ap||!afil) return toast('Complete nombres, apellido paterno y afiliación.','err');
+  const btn=$('btn-datos'); btn.disabled=true; btn.textContent='Guardando...';
+  try{
+    const {error}=await sb.from('profiles').update({nombres,ap,am,afil}).eq('id',session.user.id);
+    if(error) throw error;
+    // Se refresca el perfil en memoria para que el resto de la interfaz quede al día.
+    profile={...profile,nombres,ap,am,afil};
+    renderUserbox(); prefillInscripcion();
+    toast('Datos actualizados.','ok');
+  }catch(e){ toast('No se pudieron guardar los datos: '+(e.message||e),'err'); }
+  finally{ btn.disabled=false; btn.textContent='Guardar cambios'; }
 }
 
 // Convierte un nombre de archivo en una clave válida para el almacenamiento:
