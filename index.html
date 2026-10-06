@@ -579,7 +579,10 @@ async function submitWork(){
   if(autores.some(a=>!a.apellido)) return toast('Indique el apellido de cada autor (necesario para la cita APA).','err');
   const cita_apa=citaApa(autores,titulo);
   $('btn-submit').disabled=true; $('btn-submit').textContent='Subiendo…';
-  const path=`${session.user.id}/${Date.now()}_${chosenFile.name}`;
+  // La clave de almacenamiento solo admite ASCII: se depura el nombre
+  // (tildes, espacios, signos) para construir la ruta. El nombre original
+  // se conserva en archivo_name para mostrarlo y descargarlo.
+  const path=`${session.user.id}/${Date.now()}_${nombreSeguro(chosenFile.name)}`;
   const up=await sb.storage.from('trabajos').upload(path, chosenFile);
   if(up.error){ $('btn-submit').disabled=false; $('btn-submit').textContent='Enviar para evaluación'; return toast('Error al subir el archivo: '+up.error.message,'err'); }
   const {data:nuevo,error}=await sb.from('works').insert({owner_id:session.user.id,titulo,keywords,area,formato,autores,cita_apa,archivo_path:path,archivo_name:chosenFile.name,estado:'pendiente',bloqueado:true}).select().single();
@@ -866,6 +869,20 @@ async function renderAdminInsc(){
     <td>${fmt(i.tarifa)}<br><span style="color:var(--niebla);font-size:.74rem">${etiquetaCategoria(i.tipo,i.socio,true)}</span></td>
     <td>${medio}</td><td class="acciones">${comp}</td>
     <td>${envio}</td><td>${kws}</td><td>${areas}</td></tr>`;}).join('');
+}
+
+// Convierte un nombre de archivo en una clave válida para el almacenamiento:
+// quita tildes y diacríticos, y reemplaza todo lo que no sea alfanumérico.
+function nombreSeguro(nombre){
+  const punto=nombre.lastIndexOf('.');
+  let base = punto>0 ? nombre.slice(0,punto) : nombre;
+  let ext  = punto>0 ? nombre.slice(punto+1) : '';
+  const limpiar=s=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'')  // tildes
+                    .replace(/[^a-zA-Z0-9]+/g,'-')                     // resto
+                    .replace(/^-+|-+$/g,'');
+  base=limpiar(base).slice(0,80) || 'archivo';
+  ext =limpiar(ext).toLowerCase() || 'dat';
+  return `${base}.${ext}`;
 }
 
 /* ===== EXPORTACIÓN A EXCEL ===== */
