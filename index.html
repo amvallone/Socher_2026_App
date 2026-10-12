@@ -957,7 +957,8 @@ async function exportarEnvios(){
   if(error) return toast('No se pudieron obtener los trabajos: '+error.message,'err');
   const filas=(works||[]).map(w=>{
     const aut=Array.isArray(w.autores)?w.autores:[];
-    const nombres=aut.map(a=>a.nombre).filter(Boolean).join('; ');
+    // Nombre y apellido completos, en el orden declarado por el autor de contacto.
+    const nombres=aut.map(a=>`${a.nombre||''} ${a.apellido||''}`.trim()).filter(Boolean).join('; ');
     const afils=[...new Set(aut.map(a=>a.afil).filter(Boolean))].join('; ');
     const estado = w.estado==='aceptado'?'Aceptado'
                  : w.estado==='rechazado'?'Rechazado'
@@ -967,6 +968,8 @@ async function exportarEnvios(){
       'Título': w.titulo||'',
       'Autores': nombres,
       'Afiliación': afils,
+      // Para trabajos antiguos sin cita almacenada, se reconstruye al exportar.
+      'Referencia APA': w.cita_apa || citaApa(aut, w.titulo||''),
       'Área': w.area||'',
       'Formato': w.formato||'',
       'Estado': estado
@@ -977,10 +980,33 @@ async function exportarEnvios(){
   descargarExcel(filas,'Envíos','socher2026-envios');
 }
 
+// Normaliza un texto para comparar nombres: sin tildes, minúsculas, sin signos.
+function normNombre(s){
+  return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .toLowerCase().replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();
+}
+// Determina si un autor declarado en un trabajo corresponde a una persona inscrita.
+// Exige coincidencia de apellido y del primer nombre de pila, para evitar
+// falsos positivos entre homónimos parciales.
+function mismoIndividuo(autor, perfil){
+  const apAutor=normNombre(autor.apellido).split(' ').filter(Boolean);
+  const apPerfil=[...normNombre(perfil.ap).split(' '),...normNombre(perfil.am).split(' ')].filter(Boolean);
+  if(!apAutor.length||!apPerfil.length) return false;
+  // El apellido paterno del perfil debe figurar entre los apellidos del autor.
+  const coincideAp=apAutor.some(a=>apPerfil.includes(a));
+  if(!coincideAp) return false;
+  const nomAutor=normNombre(autor.nombre).split(' ').filter(Boolean);
+  const nomPerfil=normNombre(perfil.nombres).split(' ').filter(Boolean);
+  if(!nomAutor.length||!nomPerfil.length) return false;
+  // Coincide el primer nombre, o bien la inicial cuando el autor lo abrevió.
+  const a=nomAutor[0], p=nomPerfil[0];
+  return a===p || (a.length===1 && a===p[0]) || (p.length===1 && p===a[0]);
+}
+
 async function exportarInscritos(){
   const [{data:ins,error},{data:works},{data:comps},pmap]=await Promise.all([
     sb.from('inscripciones').select('*'),
-    sb.from('works').select('owner_id,area'),
+    sb.from('works').select('owner_id,area,numero,titulo,autores'),
     sb.from('comprobantes').select('user_id,estado,monto,created_at').order('created_at',{ascending:false}),
     fetchProfilesMap()]);
   if(error) return toast('No se pudieron obtener las inscripciones: '+error.message,'err');
@@ -988,6 +1014,15 @@ async function exportarInscritos(){
     const u=pmap[i.user_id]||{};
     const mine=(works||[]).filter(w=>w.owner_id===i.user_id);
     const c=(comps||[]).find(x=>x.user_id===i.user_id);
+    // Trabajos en los que la persona inscrita figura como autor, con su posición
+    // en el orden de autoría. Sirve para identificar quién expondrá.
+    const comoAutor=[];
+    (works||[]).forEach(w=>{
+      const aut=Array.isArray(w.autores)?w.autores:[];
+      const idx=aut.findIndex(a=>mismoIndividuo(a,u));
+      if(idx>=0) comoAutor.push({ref:w.numero||'(sin número)', orden:idx+1, total:aut.length, titulo:w.titulo});
+    });
+    comoAutor.sort((a,b)=>String(a.ref).localeCompare(String(b.ref),'es',{numeric:true}));
     return {
       'Nombre': [u.nombres,u.ap,u.am].filter(Boolean).join(' '),
       'Correo': u.email||'',
@@ -998,6 +1033,10 @@ async function exportarInscritos(){
       'Medio de pago': i.medio_pago==='simple'?'Pago simple':i.medio_pago==='factura'?'Con factura':'',
       'Estado del pago': c?(c.estado==='verificado'?'Verificado':c.estado==='rechazado'?'Rechazado':'Pendiente'):'Sin comprobante',
       'Trabajos enviados': mine.length,
+      'Figura como autor en': comoAutor.map(x=>x.ref).join('; '),
+      'Orden como autor': comoAutor.map(x=>`${x.orden} de ${x.total}`).join('; '),
+      'Es primer autor': comoAutor.length ? (comoAutor.some(x=>x.orden===1)?'Sí':'No') : '',
+      'Títulos como autor': comoAutor.map(x=>x.titulo).filter(Boolean).join(' | '),
       'Áreas': [...new Set(mine.map(w=>w.area))].join('; ')
     };
   });
