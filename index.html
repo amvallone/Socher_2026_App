@@ -1022,7 +1022,8 @@ async function exportarReportePrograma(){
   const ws=wb.addWorksheet('Envios e Inscritos');
   const columnas=[['Referencia',12],['Título',42],['Referencia APA',48],['Estado del Envío',18],
                   ['Autor',28],['Email',30],['Afiliación Principal',32],
-                  ['Estado del Pago',18],['Tipo de Pago',16],['Monto Inscripción',20]];
+                  ['Estado del Pago',18],['Tipo de Pago',16],['Monto Inscripción',20],
+                  ['Origen del correo',20]];
   ws.columns=columnas.map(([h,w])=>({header:h,width:w}));
   const enc=ws.getRow(1);
   enc.font={name:'Calibri',size:11,bold:true,color:{argb:'FFFFFFFF'}};
@@ -1035,19 +1036,31 @@ async function exportarReportePrograma(){
     const aut=Array.isArray(w.autores)&&w.autores.length?w.autores:[{nombre:'',apellido:'',afil:''}];
     const estadoEnvio = w.estado==='aceptado'?'Aceptado' : w.estado==='rechazado'?'Rechazado' : 'En revisión';
     const apa = w.cita_apa || citaApa(aut, w.titulo||'');
+    // Quien realizó el envío: su correo respalda a los coautores sin cuenta.
+    const dueno = pmap[w.owner_id] || {};
     const inicio=fila;
     aut.forEach((a,idx)=>{
       // Se busca a la persona inscrita que corresponde a este autor.
       const perfil=perfiles.find(p=>mismoIndividuo(a,p));
       const insc=perfil?(ins||[]).find(x=>x.user_id===perfil.id):null;
-      let estadoPago='No inscripto', tipoPago='-', monto='-', email='-';
+      // El correo proviene de la cuenta del autor y es independiente de que
+      // se haya inscrito: así la columna sirve para enviar recordatorios.
+      // Si el autor no tiene cuenta, se usa el correo de quien envió el
+      // trabajo, que es la vía de contacto disponible para ese paper.
+      let email, origen;
+      if(perfil&&perfil.email){ email=perfil.email; origen='Autor'; }
+      else if(dueno.email){ email=dueno.email; origen='Contacto del envío'; }
+      else { email='-'; origen='-'; }
+      let estadoPago='No inscripto', tipoPago='-', monto='-';
       if(insc){
-        email=perfil.email||'-';
         const c=(comps||[]).find(x=>x.user_id===perfil.id);
         estadoPago = c ? (c.estado==='verificado'?'Verificado':c.estado==='rechazado'?'Rechazado':'Pendiente')
                    : (insc.pago_manual?'Verificado sin comprobante':'Sin comprobante');
         tipoPago = insc.medio_pago==='simple'?'Pago simple':insc.medio_pago==='factura'?'Con factura':'-';
         monto = insc.tarifa!=null?fmt(insc.tarifa):'-';
+      }else if(perfil){
+        // Tiene cuenta en la plataforma pero aún no completa su inscripción.
+        estadoPago='Registrado sin inscripción';
       }
       ws.addRow([
         idx===0?(w.numero||''):null,
@@ -1055,7 +1068,7 @@ async function exportarReportePrograma(){
         idx===0?apa:null,
         idx===0?estadoEnvio:null,
         `${a.nombre||''} ${a.apellido||''}`.trim(),
-        email, a.afil||'', estadoPago, tipoPago, monto
+        email, a.afil||'', estadoPago, tipoPago, monto, origen
       ]);
       fila++;
     });
