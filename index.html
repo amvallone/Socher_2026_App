@@ -171,9 +171,18 @@
       <div class="tab" id="utab-datos" onclick="userTab('datos')">Mis datos</div>
     </div>
     <div id="upane-envio">
-      <div class="panel">
+      <div class="panel" id="panel-cerrado" style="display:none">
+        <h2>Recepción de ponencias cerrada</h2>
+        <p class="desc">El plazo para el envío de trabajos finalizó. Si ya envió una ponencia, puede consultar su estado más abajo. La inscripción al congreso sigue disponible en la pestaña correspondiente.</p>
+        <p class="desc">Para consultas: socher2026@ucn.cl</p>
+      </div>
+      <div class="panel" id="panel-envio">
         <h2>Envío de trabajo</h2>
         <p class="desc">Una vez enviado, el documento se cierra para edición y queda en evaluación.</p>
+        <div id="aviso-envio-admin" style="display:none;margin-bottom:16px;padding:14px;border:1px solid var(--amarillo);border-left:4px solid var(--amarillo);border-radius:8px;background:rgba(201,162,39,.12)">
+          <strong>La recepción está cerrada para los participantes.</strong><br>
+          <span style="font-size:.85rem">Usted puede registrar un envío por tratarse de una cuenta administradora.</span>
+        </div>
         <div class="field"><label>Título de la ponencia <span class="req">*</span></label><input id="w-titulo" oninput="updateApaPreview()"></div>
         <div class="field"><label>Palabras clave <span class="req">*</span></label><input id="w-keywords" placeholder="separadas por coma"></div>
         <label>Autores <span class="req">*</span></label>
@@ -250,6 +259,10 @@
       <div class="panel">
         <h2>Mis datos</h2>
         <p class="desc">Corrija aquí sus datos personales. Se utilizan en los listados, los certificados y la comunicación del congreso.</p>
+        <div id="aviso-datos" class="hidden" style="margin-bottom:16px;padding:14px;border:1px solid var(--amarillo);border-left:4px solid var(--amarillo);border-radius:8px;background:rgba(201,162,39,.12)">
+          <strong>Su perfil está incompleto.</strong><br>
+          <span style="font-size:.85rem">Sin nombre, apellido y afiliación el sistema no puede reconocerlo como autor de los trabajos ni incluir su correo en los reportes.</span>
+        </div>
         <div class="row"><div class="field"><label>Nombres <span class="req">*</span></label><input id="d-nombres"></div></div>
         <div class="row">
           <div class="field"><label>Apellido paterno <span class="req">*</span></label><input id="d-ap"></div>
@@ -274,7 +287,14 @@
       </div>
       <span class="live"><span class="dot"></span>En vivo</span>
     </div>
-    <div id="apane-envios"><div class="panel"><h2>Trabajos recibidos</h2>
+    <div id="apane-envios">
+      <div class="panel" style="margin-bottom:22px">
+        <h2>Recepción de ponencias</h2>
+        <p class="desc">Controla si los participantes pueden enviar nuevos trabajos. El registro de usuarios y la inscripción al congreso no se ven afectados.</p>
+        <div id="estado-envios" style="margin:14px 0"></div>
+        <button class="btn" id="btn-toggle-envios" onclick="alternarRecepcion()">Cargando…</button>
+      </div>
+      <div class="panel"><h2>Trabajos recibidos</h2>
       <p class="desc">Acepte o rechace cada trabajo. La acción notifica al autor y se refleja al instante para los demás administradores.</p>
       <button class="btn ghost sm" style="margin-bottom:14px" onclick="exportarEnvios()">Descargar en Excel</button>
       <div class="tabla-scroll"><table><thead><tr><th>Número</th><th>Título</th><th>Autor</th><th>Área</th><th>Formato</th><th>Archivo</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="admin-envios"></tbody></table></div></div></div>
@@ -508,11 +528,13 @@ async function afterAuth(){
     $('view-user').classList.add('hidden'); $('view-admin').classList.remove('hidden');
     $('atab-roles').classList.toggle('hidden', profile.role!=='superadmin');
     adminTab('envios'); await renderAdmin(); subscribeRealtime();
+    await cargarEstadoEnvios();
     renderUserbox(); // re-pinta con el botón de alternancia ya que vistaActual está fijado
   }else{
     vistaActual='user';
     $('view-admin').classList.add('hidden'); $('view-user').classList.remove('hidden');
     prefillInscripcion(); initAutores(); userTab('envio'); await renderMisEnvios(); renderComprobante();
+    await cargarEstadoEnvios();
   }
 }
 function renderUserbox(){
@@ -522,7 +544,9 @@ function renderUserbox(){
   const toggleBtn = esGestor
     ? `<button class="btn ghost sm" id="btn-toggle-vista" onclick="toggleVista()">${vistaActual==='admin'?'Mi participación':'Volver a Gestión'}</button>`
     : '';
-  $('userbox').innerHTML=`<span><span class="role">${r}</span><br>${profile.nombres} ${profile.ap}</span>${toggleBtn}<button class="btn ghost sm" onclick="logout()">Salir</button>`;
+  // Si el perfil no tiene nombre se muestra el correo, para no dejar el espacio vacío.
+  const quien=`${profile.nombres||''} ${profile.ap||''}`.trim() || profile.email || '';
+  $('userbox').innerHTML=`<span><span class="role">${r}</span><br>${quien}</span>${toggleBtn}<button class="btn ghost sm" onclick="logout()">Salir</button>`;
 }
 
 // Alterna, para gestores, entre el panel de Gestión y la vista de participación (envío/inscripción).
@@ -534,6 +558,7 @@ function toggleVista(){
     if(!participacionInit){ prefillInscripcion(); initAutores(); userTab('envio'); participacionInit=true; }
     renderComprobante();
     renderMisEnvios();
+    cargarEstadoEnvios();
   }else{
     vistaActual='admin';
     $('view-user').classList.add('hidden'); $('view-admin').classList.remove('hidden');
@@ -602,6 +627,9 @@ async function submitWork(){
   const titulo=$('w-titulo').value.trim(),keywords=$('w-keywords').value.trim(),area=$('w-area').value,formato=$('w-formato').value;
   const autores=collectAutores();
   if(!titulo||!keywords||!area||!formato||!autores.length||!chosenFile) return toast('Complete todos los campos y adjunte el archivo.','err');
+  // Se vuelve a consultar el estado por si la recepción se cerró mientras la página estaba abierta.
+  await cargarEstadoEnvios();
+  if(!enviosAbiertos && !esGestor()) return toast('La recepción de ponencias está cerrada. No es posible enviar nuevos trabajos.','err');
   if(autores.some(a=>!a.apellido)) return toast('Indique el apellido de cada autor (necesario para la cita APA).','err');
   const cita_apa=citaApa(autores,titulo);
   $('btn-submit').disabled=true; $('btn-submit').textContent='Subiendo…';
@@ -912,6 +940,13 @@ async function renderAdminInsc(){
 /* ===== MIS DATOS ===== */
 function cargarMisDatos(){
   if(!profile) return;
+  // Las cuentas creadas desde el panel de Supabase llegan sin nombre; sin él
+  // el sistema no puede reconocer a la persona como autora de un trabajo.
+  const av=$('aviso-datos');
+  if(av){
+    const falta=!(profile.nombres||'').trim() || !(profile.ap||'').trim() || !(profile.afil||'').trim();
+    av.classList.toggle('hidden',!falta);
+  }
   $('d-nombres').value=profile.nombres||'';
   $('d-ap').value=profile.ap||'';
   $('d-am').value=profile.am||'';
@@ -1154,6 +1189,60 @@ async function exportarInscritos(){
   descargarExcel(filas,'Inscritos','socher2026-inscritos');
 }
 
+/* ===== RECEPCIÓN DE PONENCIAS =====
+   El estado vive en la tabla config y lo aplica también la política de
+   la base de datos, de modo que cerrar la recepción no depende de que
+   la interfaz oculte el formulario. */
+let enviosAbiertos=true;
+
+async function cargarEstadoEnvios(){
+  const {data,error}=await sb.from('config').select('valor').eq('clave','envios_abiertos').maybeSingle();
+  // Ante un fallo de lectura se asume abierto: la base de datos es el guardián real.
+  enviosAbiertos = error ? true : (data ? data.valor !== false : true);
+  aplicarEstadoEnvios();
+  return enviosAbiertos;
+}
+
+// Ajusta ambas vistas al estado vigente.
+function aplicarEstadoEnvios(){
+  const gestor=esGestor();
+  const pEnvio=$('panel-envio'), pCerrado=$('panel-cerrado'), avisoAdmin=$('aviso-envio-admin');
+  if(pEnvio&&pCerrado){
+    // El participante ve el aviso; el gestor conserva el formulario para excepciones.
+    const mostrarForm = enviosAbiertos || gestor;
+    pEnvio.style.display   = mostrarForm ? '' : 'none';
+    pCerrado.style.display = mostrarForm ? 'none' : '';
+    if(avisoAdmin) avisoAdmin.style.display = (!enviosAbiertos && gestor) ? '' : 'none';
+  }
+  const est=$('estado-envios'), btn=$('btn-toggle-envios');
+  if(est&&btn){
+    est.innerHTML = enviosAbiertos
+      ? '<span class="tag si">Recepción abierta</span><br><span style="color:var(--niebla);font-size:.82rem">Los participantes pueden enviar trabajos.</span>'
+      : '<span class="tag rej">Recepción cerrada</span><br><span style="color:var(--niebla);font-size:.82rem">Los participantes no pueden enviar nuevos trabajos. El registro y la inscripción siguen habilitados.</span>';
+    btn.textContent = enviosAbiertos ? 'Cerrar recepción de ponencias' : 'Reabrir recepción de ponencias';
+    btn.className   = enviosAbiertos ? 'btn no' : 'btn ok';
+  }
+}
+
+async function alternarRecepcion(){
+  if(!esGestor()) return toast('Acción reservada a administradores.','err');
+  const cerrar=enviosAbiertos;
+  const msg=cerrar
+    ? '¿Cerrar la recepción de ponencias? Los participantes no podrán enviar nuevos trabajos. El registro y la inscripción no se ven afectados.'
+    : '¿Reabrir la recepción de ponencias? Los participantes volverán a poder enviar trabajos.';
+  if(!confirm(msg)) return;
+  const btn=$('btn-toggle-envios'); btn.disabled=true; btn.textContent='Guardando…';
+  const {error}=await sb.from('config').update({
+    valor: !cerrar,
+    nota: cerrar?'Recepción cerrada por el Comité Organizador':'Recepción reabierta por el Comité Organizador',
+    actualizado_por: session.user.id, actualizado_at: new Date().toISOString()
+  }).eq('clave','envios_abiertos');
+  btn.disabled=false;
+  if(error){ aplicarEstadoEnvios(); return toast('No se pudo cambiar el estado: '+error.message,'err'); }
+  enviosAbiertos=!cerrar; aplicarEstadoEnvios();
+  toast(cerrar?'Recepción de ponencias cerrada.':'Recepción de ponencias reabierta.','ok');
+}
+
 /* ===== GESTIÓN ADMINISTRATIVA DEL PAGO =====
    Acciones reservadas a administradores y superadministrador. La base de
    datos lo exige mediante la política "admin actualiza inscripcion"; esta
@@ -1297,7 +1386,11 @@ async function renderRoles(){
     if(u.role==='superadmin') acc='<span style="color:var(--niebla);font-size:.8rem">—</span>';
     else if(u.role==='admin') acc=`<button class="btn ghost sm" onclick="setRole('${u.id}','user')">Quitar admin</button> <button class="btn ghost sm" onclick="changeUserPassword('${u.id}','${u.email}')">Cambiar contraseña</button> <button class="btn danger sm" onclick="deleteUser('${u.id}','${(u.nombres+' '+u.ap).replace(/'/g,"")}')">Eliminar</button>`;
     else acc=`<button class="btn sm" onclick="setRole('${u.id}','admin')">Hacer admin</button> <button class="btn ghost sm" onclick="changeUserPassword('${u.id}','${u.email}')">Cambiar contraseña</button> <button class="btn danger sm" onclick="deleteUser('${u.id}','${(u.nombres+' '+u.ap).replace(/'/g,"")}')">Eliminar</button>`;
-    return `<tr><td>${u.nombres} ${u.ap}</td><td>${u.email}</td><td>${rt}</td><td style="white-space:nowrap">${acc}</td></tr>`;
+    // Un perfil creado desde el panel de Supabase llega sin nombre: se
+    // señala para que el comité lo complete, en lugar de quedar en blanco.
+    const nom=`${u.nombres||''} ${u.ap||''}`.trim();
+    const celdaNom = nom || '<span style="color:var(--amarillo)">Perfil sin nombre</span>';
+    return `<tr><td>${celdaNom}</td><td>${u.email}</td><td>${rt}</td><td style="white-space:nowrap">${acc}</td></tr>`;
   }).join('');
 }
 async function setRole(id,role){
