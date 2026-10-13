@@ -281,6 +281,7 @@
     <div id="apane-insc" class="hidden"><div class="panel"><h2>Usuarios inscritos</h2>
       <p class="desc">Inscritos, con indicación de si han enviado trabajos y su detalle temático.</p>
       <button class="btn ghost sm" style="margin-bottom:14px" onclick="exportarInscritos()">Descargar en Excel</button>
+      <button class="btn ghost sm" style="margin-bottom:14px;margin-left:8px" onclick="exportarReportePrograma()">Reporte programa</button>
       <div class="tabla-scroll"><table><thead><tr><th>Nombre</th><th>Afiliación</th><th>Tarifa</th><th>Medio</th><th>Comprobante</th><th>¿Envió?</th><th>Palabras clave</th><th>Área temática</th></tr></thead><tbody id="admin-insc"></tbody></table></div></div></div>
     <div id="apane-roles" class="hidden">
       <div class="panel"><h2>Gestión de usuarios y roles</h2>
@@ -329,6 +330,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script>
 /* ============================================================
    CONFIGURACIÓN SUPABASE
@@ -880,7 +882,7 @@ async function renderAdminInsc(){
     const medio=i.medio_pago==='simple'?'Pago simple':i.medio_pago==='factura'?'Con factura':'—';
     // Comprobante más reciente del participante.
     const c=(comps||[]).find(x=>x.user_id===i.user_id);
-    let comp='<span class="tag no">Sin comprobante</span>';
+    let comp='';
     if(c){
       const tag=c.estado==='verificado'?'<span class="tag acc">Verificado</span>'
                :c.estado==='rechazado'?'<span class="tag rej">Rechazado</span>'
@@ -888,9 +890,21 @@ async function renderAdminInsc(){
       comp=`<a href="#" onclick="verComprobante('${c.archivo_path}');return false">${c.archivo_nombre||'Ver archivo'}</a><br>${tag}`;
       if(c.estado!=='verificado') comp+=`<br><button class="btn ok sm" style="margin-top:6px" onclick="verificarComprobante('${c.id}')">Verificar</button>`;
       if(c.estado!=='rechazado') comp+=`<br><button class="btn no sm" style="margin-top:4px" onclick="rechazarComprobante('${c.id}')">Rechazar</button>`;
+    }else if(i.pago_manual){
+      // Pago conciliado por el comité sin comprobante cargado.
+      comp=`<span class="tag acc">Verificado sin comprobante</span>`
+          +(i.nota_pago?`<br><span style="color:var(--niebla);font-size:.72rem">${i.nota_pago}</span>`:'')
+          +`<br><button class="btn ghost sm" style="margin-top:6px" onclick="anularPagoManual('${i.user_id}')">Anular</button>`;
+    }else{
+      comp='<span class="tag no">Sin comprobante</span>'
+          +`<br><button class="btn ok sm" style="margin-top:6px" onclick="verificarSinComprobante('${i.user_id}')">Verificar sin comprobante</button>`;
     }
+    // El monto editado se señala para distinguirlo de la tarifa calculada.
+    const montoEd=i.monto_original!=null && i.monto_original!==i.tarifa
+      ? `<br><span style="color:var(--niebla);font-size:.72rem">antes ${fmt(i.monto_original)}</span>` : '';
     return `<tr><td>${u?u.nombres+' '+u.ap:i.user_id}</td><td>${u?u.afil:'—'}</td>
-    <td>${fmt(i.tarifa)}<br><span style="color:var(--niebla);font-size:.74rem">${etiquetaCategoria(i.tipo,i.socio,true)}</span></td>
+    <td>${fmt(i.tarifa)}${montoEd}<br><span style="color:var(--niebla);font-size:.74rem">${etiquetaCategoria(i.tipo,i.socio,true)}</span>
+    <br><button class="btn ghost sm" style="margin-top:6px" onclick="editarMonto('${i.user_id}',${i.tarifa})">Modificar monto</button></td>
     <td>${medio}</td><td class="acciones">${comp}</td>
     <td>${envio}</td><td>${kws}</td><td>${areas}</td></tr>`;}).join('');
 }
@@ -953,9 +967,12 @@ function descargarExcel(filas, nombreHoja, nombreArchivo){
 }
 
 async function exportarEnvios(){
-  const {data:works,error}=await sb.from('works').select('*').order('created_at',{ascending:true});
+  const [{data:works,error},pmap]=await Promise.all([
+    sb.from('works').select('*').order('created_at',{ascending:true}),
+    fetchProfilesMap()]);
   if(error) return toast('No se pudieron obtener los trabajos: '+error.message,'err');
   const filas=(works||[]).map(w=>{
+    const dueno=pmap[w.owner_id]||{};
     const aut=Array.isArray(w.autores)?w.autores:[];
     // Nombre y apellido completos, en el orden declarado por el autor de contacto.
     const nombres=aut.map(a=>`${a.nombre||''} ${a.apellido||''}`.trim()).filter(Boolean).join('; ');
@@ -968,6 +985,9 @@ async function exportarEnvios(){
       'Título': w.titulo||'',
       'Autores': nombres,
       'Afiliación': afils,
+      // Correo de quien envió el trabajo, para comunicaciones y recordatorios.
+      'Correo de contacto': dueno.email||'',
+      'Autor de contacto': [dueno.nombres,dueno.ap].filter(Boolean).join(' '),
       // Para trabajos antiguos sin cita almacenada, se reconstruye al exportar.
       'Referencia APA': w.cita_apa || citaApa(aut, w.titulo||''),
       'Área': w.area||'',
@@ -978,6 +998,84 @@ async function exportarEnvios(){
   // Orden por número de envío, para que coincida con el correlativo.
   filas.sort((a,b)=>String(a.Referencia).localeCompare(String(b.Referencia),'es',{numeric:true}));
   descargarExcel(filas,'Envíos','socher2026-envios');
+}
+
+/* ===== REPORTE PARA LA ELABORACIÓN DEL PROGRAMA =====
+   Una fila por autor; los datos del trabajo se combinan verticalmente
+   sobre todas las filas de sus autores. Cada autor se vincula con la
+   persona inscrita cuando los nombres coinciden, de modo que el comité
+   identifique quién está inscrito y quién expondrá. */
+async function exportarReportePrograma(){
+  if(typeof ExcelJS==='undefined') return toast('No se pudo cargar el generador de Excel. Revise su conexión.','err');
+  const [{data:works,error},{data:ins},{data:comps},pmap]=await Promise.all([
+    sb.from('works').select('*'),
+    sb.from('inscripciones').select('*'),
+    sb.from('comprobantes').select('user_id,estado,created_at').order('created_at',{ascending:false}),
+    fetchProfilesMap()]);
+  if(error) return toast('No se pudieron obtener los trabajos: '+error.message,'err');
+  if(!works||!works.length) return toast('No hay trabajos para incluir en el reporte.','err');
+
+  const perfiles=Object.values(pmap);
+  const ordenados=[...works].sort((a,b)=>String(a.numero||'').localeCompare(String(b.numero||''),'es',{numeric:true}));
+
+  const wb=new ExcelJS.Workbook();
+  const ws=wb.addWorksheet('Envios e Inscritos');
+  const columnas=[['Referencia',12],['Título',42],['Referencia APA',48],['Estado del Envío',18],
+                  ['Autor',28],['Email',30],['Afiliación Principal',32],
+                  ['Estado del Pago',18],['Tipo de Pago',16],['Monto Inscripción',20]];
+  ws.columns=columnas.map(([h,w])=>({header:h,width:w}));
+  const enc=ws.getRow(1);
+  enc.font={name:'Calibri',size:11,bold:true,color:{argb:'FFFFFFFF'}};
+  enc.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1F4E78'}};
+  enc.alignment={horizontal:'center',vertical:'center',wrapText:true};
+
+  const combinar=[];
+  let fila=2;
+  ordenados.forEach(w=>{
+    const aut=Array.isArray(w.autores)&&w.autores.length?w.autores:[{nombre:'',apellido:'',afil:''}];
+    const estadoEnvio = w.estado==='aceptado'?'Aceptado' : w.estado==='rechazado'?'Rechazado' : 'En revisión';
+    const apa = w.cita_apa || citaApa(aut, w.titulo||'');
+    const inicio=fila;
+    aut.forEach((a,idx)=>{
+      // Se busca a la persona inscrita que corresponde a este autor.
+      const perfil=perfiles.find(p=>mismoIndividuo(a,p));
+      const insc=perfil?(ins||[]).find(x=>x.user_id===perfil.id):null;
+      let estadoPago='No inscripto', tipoPago='-', monto='-', email='-';
+      if(insc){
+        email=perfil.email||'-';
+        const c=(comps||[]).find(x=>x.user_id===perfil.id);
+        estadoPago = c ? (c.estado==='verificado'?'Verificado':c.estado==='rechazado'?'Rechazado':'Pendiente')
+                   : (insc.pago_manual?'Verificado sin comprobante':'Sin comprobante');
+        tipoPago = insc.medio_pago==='simple'?'Pago simple':insc.medio_pago==='factura'?'Con factura':'-';
+        monto = insc.tarifa!=null?fmt(insc.tarifa):'-';
+      }
+      ws.addRow([
+        idx===0?(w.numero||''):null,
+        idx===0?(w.titulo||''):null,
+        idx===0?apa:null,
+        idx===0?estadoEnvio:null,
+        `${a.nombre||''} ${a.apellido||''}`.trim(),
+        email, a.afil||'', estadoPago, tipoPago, monto
+      ]);
+      fila++;
+    });
+    // Los datos del trabajo se combinan sobre todas las filas de sus autores.
+    if(aut.length>1) ['A','B','C','D'].forEach(col=>combinar.push(`${col}${inicio}:${col}${fila-1}`));
+  });
+  combinar.forEach(r=>ws.mergeCells(r));
+  for(let r=2;r<fila;r++){
+    const row=ws.getRow(r);
+    row.font={name:'Calibri',size:10};
+    row.alignment={horizontal:'left',vertical:'center',wrapText:true};
+  }
+
+  const buf=await wb.xlsx.writeBuffer();
+  const url=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+  const a=document.createElement('a');
+  a.href=url; a.download=`Reporte_Envios_Inscritos_EstadoEnvio_SOCHER2026-${new Date().toISOString().slice(0,10)}.xlsx`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  toast('Reporte de programa generado.','ok');
 }
 
 // Normaliza un texto para comparar nombres: sin tildes, minúsculas, sin signos.
@@ -1041,6 +1139,73 @@ async function exportarInscritos(){
     };
   });
   descargarExcel(filas,'Inscritos','socher2026-inscritos');
+}
+
+/* ===== GESTIÓN ADMINISTRATIVA DEL PAGO =====
+   Acciones reservadas a administradores y superadministrador. La base de
+   datos lo exige mediante la política "admin actualiza inscripcion"; esta
+   comprobación evita además que la interfaz ofrezca algo que fallará. */
+function esGestor(){ return profile && (profile.role==='admin'||profile.role==='superadmin'); }
+
+// Da por pagada una inscripción sin comprobante cargado: transferencia
+// conciliada por otra vía, pago institucional o exención.
+async function verificarSinComprobante(userId){
+  if(!esGestor()) return toast('Acción reservada a administradores.','err');
+  const nota=prompt('Motivo de la verificación sin comprobante (queda registrado):','Pago conciliado por el Comité Organizador');
+  if(nota===null) return;
+  const {error}=await sb.from('inscripciones').update({
+    pagado:true, pago_manual:true, nota_pago:nota||'Verificado por el Comité Organizador',
+    gestionado_por:session.user.id, gestionado_at:new Date().toISOString()
+  }).eq('user_id',userId);
+  if(error) return toast('No se pudo verificar: '+error.message,'err');
+  avisarPagoManual(userId);
+  toast('Inscripción verificada sin comprobante. Se notificó al participante.','ok');
+  renderAdminInsc();
+}
+
+async function anularPagoManual(userId){
+  if(!esGestor()) return toast('Acción reservada a administradores.','err');
+  if(!confirm('¿Anular la verificación sin comprobante? La inscripción volverá a figurar como impaga.')) return;
+  const {error}=await sb.from('inscripciones').update({
+    pagado:false, pago_manual:false, nota_pago:null,
+    gestionado_por:session.user.id, gestionado_at:new Date().toISOString()
+  }).eq('user_id',userId);
+  if(error) return toast('No se pudo anular: '+error.message,'err');
+  toast('Verificación anulada.','ok'); renderAdminInsc();
+}
+
+// Corrige el monto de inscripción de un participante, conservando el valor previo.
+async function editarMonto(userId, actual){
+  if(!esGestor()) return toast('Acción reservada a administradores.','err');
+  const entrada=prompt('Nuevo monto de inscripción en pesos (solo números):', actual||'');
+  if(entrada===null) return;
+  const monto=parseInt(String(entrada).replace(/\D/g,''),10);
+  if(isNaN(monto)||monto<0) return toast('Monto no válido.','err');
+  const {data:prev}=await sb.from('inscripciones').select('tarifa,monto_original').eq('user_id',userId).maybeSingle();
+  // El monto original se guarda solo la primera vez, para no perder el valor inicial.
+  const original = (prev && prev.monto_original!=null) ? prev.monto_original : (prev?prev.tarifa:actual);
+  const {error}=await sb.from('inscripciones').update({
+    tarifa:monto, monto_original:original,
+    gestionado_por:session.user.id, gestionado_at:new Date().toISOString()
+  }).eq('user_id',userId);
+  if(error) return toast('No se pudo modificar el monto: '+error.message,'err');
+  toast(`Monto actualizado a ${fmt(monto)}.`,'ok'); renderAdminInsc();
+}
+
+/* CONFIG_LOG: Texto del correo de pago verificado SIN comprobante. */
+async function avisarPagoManual(userId){
+  const {data:u}=await sb.from('profiles').select('email,nombres,ap').eq('id',userId).maybeSingle();
+  if(!u) return;
+  const asunto='Inscripción regularizada — SOCHER 2026';
+  const cuerpo=`Estimado/a ${u.nombres} ${u.ap}:
+
+Confirmamos que su inscripción al XVI Congreso de la Sociedad Chilena de Estudios Regionales (SOCHER 2026) se encuentra regularizada. El pago fue verificado directamente por el Comité Organizador, por lo que no necesita cargar un comprobante en la plataforma.
+
+Para consultas y requerimientos respecto al encuentro comunicarse al correo electrónico: socher2026@ucn.cl
+
+Cordialmente,
+Comité Organizador SOCHER 2026`;
+  dispatchEmail(u.email,asunto,cuerpo);
 }
 
 // El gestor confirma que el pago está correcto; marca la inscripción como pagada.
