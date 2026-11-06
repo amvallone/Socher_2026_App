@@ -1056,6 +1056,7 @@ async function exportarReportePrograma(){
   const wb=new ExcelJS.Workbook();
   const ws=wb.addWorksheet('Envios e Inscritos');
   const columnas=[['Referencia',12],['Título',42],['Referencia APA',48],['Estado del Envío',18],
+                  ['Área temática',38],
                   ['Autor',28],['Email',30],['Afiliación Principal',32],
                   ['Estado del Pago',18],['Tipo de Pago',16],['Monto Inscripción',20],
                   ['Origen del correo',20]];
@@ -1102,13 +1103,14 @@ async function exportarReportePrograma(){
         idx===0?(w.titulo||''):null,
         idx===0?apa:null,
         idx===0?estadoEnvio:null,
+        idx===0?(w.area||''):null,
         `${a.nombre||''} ${a.apellido||''}`.trim(),
         email, a.afil||'', estadoPago, tipoPago, monto, origen
       ]);
       fila++;
     });
     // Los datos del trabajo se combinan sobre todas las filas de sus autores.
-    if(aut.length>1) ['A','B','C','D'].forEach(col=>combinar.push(`${col}${inicio}:${col}${fila-1}`));
+    if(aut.length>1) ['A','B','C','D','E'].forEach(col=>combinar.push(`${col}${inicio}:${col}${fila-1}`));
   });
   combinar.forEach(r=>ws.mergeCells(r));
   for(let r=2;r<fila;r++){
